@@ -1,0 +1,1 @@
+import { render, screen } from '@testing-library/react'; import '@testing-library/jest-dom'; import StatusBadge from '../StatusBadge'; describe('StatusBadge Component', () => { it('renders with pending status', () => { render(<StatusBadge status="pending" />); expect(screen.getByText('Pending')).toBeInTheDocument(); }); });

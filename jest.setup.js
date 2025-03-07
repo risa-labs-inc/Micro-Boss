@@ -16,35 +16,25 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// Suppress React error boundary console errors
-const originalConsoleError = console.error;
+// Suppress specific console errors for cleaner test output
+const originalError = console.error;
 console.error = (...args) => {
-  if (args[0]?.includes?.('React will try to recreate this component tree')) {
+  if (
+    /Warning.*not wrapped in act/i.test(args[0]) ||
+    /Warning: ReactDOM.render is no longer supported/i.test(args[0])
+  ) {
     return;
   }
-  if (args[0]?.includes?.('Error boundaries should implement getDerivedStateFromError')) {
-    return;
-  }
-  originalConsoleError(...args);
+  originalError(...args);
 };
 
 // Mock localStorage
-const localStorageMock = (() => {
-  let store = {};
-  return {
-    getItem: (key) => store[key] || null,
-    setItem: (key, value) => {
-      store[key] = value.toString();
-    },
-    removeItem: (key) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    }
-  };
-})();
-
 Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
+  value: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+  },
+  writable: true,
 }); 

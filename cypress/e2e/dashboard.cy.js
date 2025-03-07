@@ -1,6 +1,6 @@
 describe('Dashboard Page', () => {
   beforeEach(() => {
-    // Mock auth state before each test by setting token in localStorage
+    // Mock the authentication state
     cy.window().then((win) => {
       win.localStorage.setItem('token', 'fake-jwt-token');
       win.localStorage.setItem('user', JSON.stringify({
@@ -10,106 +10,113 @@ describe('Dashboard Page', () => {
       }));
     });
 
-    // Mock the user data API call
-    cy.intercept('GET', '/api/profile', {
-      statusCode: 200,
-      body: {
-        id: '1',
-        name: 'Test User',
-        email: 'test@example.com'
-      }
-    }).as('profileRequest');
-
-    // Mock the tasks API call
+    // Intercept API calls
     cy.intercept('GET', '/api/tasks', {
       statusCode: 200,
       body: [
         {
           id: '1',
-          title: 'Sample Task 1',
-          description: 'This is a sample task',
-          status: 'in_progress',
-          createdAt: '2023-01-01T00:00:00Z'
+          title: 'Task 1',
+          description: 'Description 1',
+          status: 'pending',
+          createdAt: new Date().toISOString()
         },
         {
           id: '2',
-          title: 'Sample Task 2',
-          description: 'This is another sample task',
+          title: 'Task 2',
+          description: 'Description 2',
+          status: 'running',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: '3',
+          title: 'Task 3',
+          description: 'Description 3',
           status: 'completed',
-          createdAt: '2023-01-02T00:00:00Z'
+          createdAt: new Date().toISOString()
         }
       ]
-    }).as('tasksRequest');
+    }).as('getTasks');
+
+    cy.intercept('GET', '/api/stats', {
+      statusCode: 200,
+      body: {
+        total: 5,
+        pending: 2,
+        running: 1,
+        completed: 2,
+        failed: 0
+      }
+    }).as('getStats');
 
     // Visit the dashboard
     cy.visit('/dashboard');
     
-    // Wait for the API requests to complete
-    cy.wait('@profileRequest');
-    cy.wait('@tasksRequest');
+    // Wait for API calls to complete
+    cy.wait('@getTasks');
+    cy.wait('@getStats');
   });
 
-  it('should display the dashboard with user info', () => {
-    // Check that we have the user's name displayed
-    cy.get('header').should('contain', 'Test User');
+  it('should display the dashboard correctly', () => {
+    // Check for the page title
+    cy.get('h1').should('contain', 'Dashboard');
+    
+    // Check for the user greeting
+    cy.contains('Welcome, Test User').should('be.visible');
+    
+    // Check for statistics section
+    cy.get('[data-testid="stats-card"]').should('have.length', 4);
+    cy.contains('Total Tasks: 5').should('be.visible');
+    cy.contains('Pending: 2').should('be.visible');
+    cy.contains('Running: 1').should('be.visible');
+    cy.contains('Completed: 2').should('be.visible');
+    
+    // Check for the task list
+    cy.get('[data-testid="task-item"]').should('have.length', 3);
   });
 
-  it('should display the task list', () => {
-    // Check that we have the task list with the correct number of tasks
-    cy.get('[data-testid="task-list"]').should('exist');
-    cy.get('[data-testid="task-item"]').should('have.length', 2);
-    cy.get('[data-testid="task-item"]').first().should('contain', 'Sample Task 1');
+  it('should filter tasks correctly', () => {
+    // Click on the filter dropdown
+    cy.get('[data-testid="filter-dropdown"]').click();
+    
+    // Select "Completed" filter
+    cy.contains('Completed').click();
+    
+    // Check that only completed tasks are displayed
+    cy.get('[data-testid="task-item"]').should('have.length', 1);
+    cy.get('[data-testid="task-item"]').should('contain', 'Task 3');
   });
 
-  it('should navigate to task details when clicking on a task', () => {
+  it('should navigate to task details page when clicking on a task', () => {
     // Click on the first task
     cy.get('[data-testid="task-item"]').first().click();
     
-    // Check that we're on the task details page
+    // Check that we navigate to the task details page
     cy.url().should('include', '/tasks/1');
   });
 
-  it('should allow creating a new task', () => {
-    // Mock the create task API call
-    cy.intercept('POST', '/api/tasks', {
-      statusCode: 201,
-      body: {
-        id: '3',
-        title: 'New Task',
-        description: 'This is a new task',
-        status: 'not_started',
-        createdAt: '2023-01-03T00:00:00Z'
-      }
-    }).as('createTaskRequest');
-    
-    // Click the "New Task" button
+  it('should navigate to create task page when clicking new task button', () => {
+    // Click on the new task button
     cy.get('[data-testid="new-task-button"]').click();
     
-    // Fill in the form
-    cy.get('input[name="title"]').type('New Task');
-    cy.get('textarea[name="description"]').type('This is a new task');
-    
-    // Submit the form
-    cy.get('button[type="submit"]').click();
-    
-    // Wait for the API request to complete
-    cy.wait('@createTaskRequest');
-    
-    // Check that the new task appears in the list (we'd need to mock the GET tasks again)
-    cy.get('[data-testid="task-item"]').should('contain', 'New Task');
+    // Check that we navigate to the create task page
+    cy.url().should('include', '/tasks/new');
   });
 
-  it('should allow logging out', () => {
-    // Click the logout button
-    cy.get('[data-testid="logout-button"]').click();
+  it('should handle logout correctly', () => {
+    // Click on user dropdown
+    cy.get('[data-testid="user-dropdown"]').click();
     
-    // Check that we're redirected to the login page
-    cy.url().should('include', '/login');
+    // Click on logout
+    cy.contains('Logout').click();
     
-    // Check that the token is removed from localStorage
+    // Check localStorage is cleared
     cy.window().then((win) => {
       expect(win.localStorage.getItem('token')).to.be.null;
       expect(win.localStorage.getItem('user')).to.be.null;
     });
+    
+    // Check we are redirected to login page
+    cy.url().should('include', '/login');
   });
 }); 
