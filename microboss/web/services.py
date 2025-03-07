@@ -8,12 +8,13 @@ import time
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TypeVar, Type
+from pathlib import Path
 
 from microboss.core.agent import agent
 from microboss.utils.logging import (
     LogLevel, event_logger, log_info, log_success, log_warning, 
-    log_error, log_task, log_code, log_result
+    log_error, log_task, log_code, log_result, LogEvent
 )
 
 
@@ -193,22 +194,80 @@ class TaskService:
                 max_retries=task.max_retries
             )
             
-            # Check for model_info in task events FIRST (before processing results)
-            # This ensures model info is available even during the processing
+            # Improved model_info extraction from events - do this BEFORE processing the result
             events = event_logger.get_events(task_id=task_id)
             model_info_found = False
+            
+            # First look for the most descriptive model_info in "Task will be solved using" messages
             for event in events:
-                if event.level.value == "info" and event.data and "model_info" in event.data:
+                if (event.level.value == "info" and event.data and "model_info" in event.data and 
+                    "Task will be solved using" in event.message):
                     task.model_info = event.data["model_info"]
                     model_info_found = True
-                    # Save task state immediately to make model info available
-                    for callback in self.callbacks:
-                        callback("task_updated", task)
+                    log_info(f"Found detailed model info: {task.model_info}", task_id=task_id)
                     break
             
-            # If no model info was found, set a default
+            # Then look for "USING MODEL:" messages
             if not model_info_found:
-                task.model_info = "Unknown model"
+                for event in events:
+                    if (event.level.value == "info" and event.data and "model_info" in event.data and 
+                        "USING MODEL:" in event.message):
+                        task.model_info = event.data["model_info"]
+                        model_info_found = True
+                        log_info(f"Found model info from 'USING MODEL': {task.model_info}", task_id=task_id)
+                        break
+            
+            # If not found yet, check any event with model_info in data
+            if not model_info_found:
+                for event in events:
+                    if event.level.value == "info" and event.data and "model_info" in event.data:
+                        task.model_info = event.data["model_info"]
+                        model_info_found = True
+                        log_info(f"Found model info from event data: {task.model_info}", task_id=task_id)
+                        break
+            
+            # If still not found, search for model info in message text
+            if not model_info_found:
+                for event in events:
+                    if (event.level.value == "info" and 
+                        ("USING MODEL:" in event.message or "Task will be solved using" in event.message)):
+                        parts = event.message.split(" ")
+                        if len(parts) >= 3:  # Should have format like "USING MODEL: Anthropic Claude" or similar
+                            model_text = " ".join(parts[2:])
+                            task.model_info = model_text
+                            model_info_found = True
+                            log_info(f"Extracted model info from message: {task.model_info}", task_id=task_id)
+                            break
+            
+            # If still no model info was found, set a default
+            if not model_info_found:
+                # Try to determine if we can tell which model was used from other clues
+                anthropic_found = False
+                openai_found = False
+                
+                for event in events:
+                    if "anthropic" in event.message.lower() or "claude" in event.message.lower():
+                        anthropic_found = True
+                        break
+                    if "openai" in event.message.lower() or "gpt" in event.message.lower():
+                        openai_found = True
+                        break
+                
+                if anthropic_found:
+                    task.model_info = "Anthropic Claude"
+                    model_info_found = True
+                    log_info(f"Inferred model: {task.model_info}", task_id=task_id)
+                elif openai_found:
+                    task.model_info = "OpenAI GPT-4"
+                    model_info_found = True
+                    log_info(f"Inferred model: {task.model_info}", task_id=task_id)
+                else:
+                    task.model_info = "Default AI Model"
+                    log_warning("Could not determine model info, using default", task_id=task_id)
+            
+            # Update task state immediately to make model info available
+            for callback in self.callbacks:
+                callback("task_updated", task)
             
             # Store the result
             if isinstance(result, int) and result > 1000:
@@ -272,7 +331,17 @@ class TaskService:
     
     def get_task(self, task_id: str) -> Optional[Task]:
         """Get a task by ID."""
-        return self.tasks.get(task_id)
+        if task_id not in self.tasks:
+            return None
+        
+        task = self.tasks[task_id]
+        
+        # Get task events to process for results and model info
+        events = event_logger.get_events(task_id=task_id)
+        if events:
+            self._process_task_events(task, events)
+        
+        return task
     
     def get_tasks(self) -> List[Task]:
         """Get all tasks."""
@@ -315,6 +384,46 @@ class TaskService:
             service.tasks[task.task_id] = task
         
         return service
+
+    def _process_task_events(self, task: Task, events: List[LogEvent]) -> None:
+        """Process task events to update task status and results."""
+        task_result = None
+        task_error = None
+        model_info = None  # Initialize model_info
+        
+        # First pass: look for model_info and critical events
+        for event in events:
+            # Extract model info if available
+            if event.message and "USING MODEL:" in event.message:
+                model_info = event.message.split("USING MODEL:")[1].strip()
+                # Update immediately to ensure it's available
+                task.model_info = model_info
+                
+            # Or from "Task will be solved using" message
+            elif event.message and "Task will be solved using" in event.message:
+                model_info = event.message.split("Task will be solved using")[1].strip()
+                task.model_info = model_info
+        
+        # Second pass: process results and errors
+        for event in events:
+            if event.level.value == "result" and event.data and "result" in event.data:
+                task_result = event.data["result"]
+            elif event.level.value == "error" and event.message:
+                task_error = event.message
+            elif event.message and "FINAL RESULT:" in event.message:
+                # Extract result from log message if not already found
+                if not task_result:
+                    parts = event.message.split("FINAL RESULT:")
+                    if len(parts) > 1 and parts[1].strip() != "None":
+                        task_result = parts[1].strip()
+        
+        # Update task properties
+        if task_result:
+            task.result = task_result
+        if task_error:
+            task.error = task_error
+        if model_info:
+            task.model_info = model_info
 
 
 # Global task service instance

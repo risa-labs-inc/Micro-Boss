@@ -46,6 +46,11 @@ def register_template_filters(app):
         
         return json.dumps(value, indent=2, sort_keys=True, default=str)
     
+    @app.template_filter('tojson')
+    def tojson_filter(value):
+        """Convert a Python object to a JSON string."""
+        return json.dumps(value, default=str)
+    
     @app.template_filter('truncate')
     def truncate_string(s, length=50, end='...'):
         """Truncate a string to a specific length."""

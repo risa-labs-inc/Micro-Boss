@@ -1,0 +1,51 @@
+{
+  "subproblems": [
+    [
+      "task_1",
+      "Define a function to calculate the factorial of a given number.",
+      []
+    ],
+    [
+      "task_2",
+      "Call the function with the number 10 as the argument.",
+      [
+        "task_1"
+      ]
+    ],
+    [
+      "task_3",
+      "Print the result of the factorial calculation.",
+      [
+        "task_2"
+      ]
+    ]
+  ],
+  "levels": [
+    [
+      [
+        "task_1",
+        "Define a function to calculate the factorial of a given number.",
+        []
+      ]
+    ],
+    [
+      [
+        "task_2",
+        "Call the function with the number 10 as the argument.",
+        [
+          "task_1"
+        ]
+      ]
+    ],
+    [
+      [
+        "task_3",
+        "Print the result of the factorial calculation.",
+        [
+          "task_2"
+        ]
+      ]
+    ]
+  ],
+  "aggregation_code": "results.get('task_3', None)"
+}

@@ -114,11 +114,11 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Handle common task selection
+        // Handle common task buttons
         document.querySelectorAll('.common-task').forEach(button => {
             button.addEventListener('click', () => {
                 const task = button.getAttribute('data-task');
-                window.location.href = `{{ url_for('tasks') }}?task=${encodeURIComponent(task)}`;
+                window.location.href = `/tasks?task=${encodeURIComponent(task)}`;
             });
         });
     });

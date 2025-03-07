@@ -8,7 +8,164 @@
         width: 100%;
         height: 400px;
     }
+    
+    /* Timeline styles */
+    .timeline {
+        position: relative;
+        padding: 0;
+        margin: 20px 0;
+        list-style: none;
+    }
+    
+    .timeline:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 60px;
+        width: 4px;
+        background: #e9ecef;
+        border-radius: 2px;
+        z-index: 0;
+    }
+    
+    .timeline-item {
+        position: relative;
+        display: flex;
+        margin-bottom: 25px;
+        z-index: 10;  /* Ensure timeline items appear above the line */
+    }
+    
+    .timeline-point {
+        position: relative;
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #6c757d;
+        margin-left: 54px;
+        margin-right: 20px;
+        z-index: 15;  /* Ensure points appear above the line */
+        box-shadow: 0 0 0 4px white;
+    }
+    
+    .timeline-time {
+        flex-shrink: 0;
+        width: 50px;
+        font-size: 12px;
+        color: #6c757d;
+        text-align: right;
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+    
+    .timeline-content {
+        flex-grow: 1;
+        padding: 10px 15px;
+        border-radius: 0.25rem;
+        border-left: 4px solid #6c757d;
+        background-color: #f8f9fa;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    /* Timeline point colors */
+    .bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    .bg-warning {
+        background-color: #ffc107 !important;
+    }
+    
+    .bg-info {
+        background-color: #17a2b8 !important;
+    }
+    
+    .bg-primary {
+        background-color: #007bff !important;
+    }
+    
+    /* Timeline content border colors */
+    .border-success {
+        border-left-color: #28a745 !important;
+    }
+    
+    .border-danger {
+        border-left-color: #dc3545 !important;
+    }
+    
+    .border-warning {
+        border-left-color: #ffc107 !important;
+    }
+    
+    .border-info {
+        border-left-color: #17a2b8 !important;
+    }
+    
+    .border-primary {
+        border-left-color: #007bff !important;
+    }
+    
+    /* Log console styles */
+    .log-console {
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+        padding: 10px;
+        max-height: 500px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 14px;
+    }
+    
+    .log-entry {
+        margin-bottom: 5px;
+        padding: 5px;
+        border-radius: 0.25rem;
+    }
+    
+    .log-info {
+        background-color: #f8f9fa;
+    }
+    
+    .log-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .log-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .log-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .log-code {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .log-result {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    
+    .timestamp {
+        color: #6c757d;
+        font-size: 12px;
+        margin-right: 10px;
+    }
 </style>
+<!-- Include the vis.js library for network visualization -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/dist/vis-network.min.css">
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -58,9 +215,40 @@
                         Max Retries
                         <span class="badge bg-primary rounded-pill">{{ task.max_retries }}</span>
                     </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        AI Model
-                        <span class="badge bg-info text-dark">{{ task.model_info if task.model_info else "Not specified" }}</span>
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>AI Model</strong>
+                            {% if task.model_info %}
+                                {% if "anthropic" in task.model_info|lower %}
+                                    <span class="badge bg-primary" title="{{ task.model_info }}">
+                                        <i class="fas fa-robot me-1"></i> {{ task.model_info }}
+                                    </span>
+                                {% elif "openai" in task.model_info|lower %}
+                                    <span class="badge bg-success" title="{{ task.model_info }}">
+                                        <i class="fas fa-brain me-1"></i> {{ task.model_info }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info" title="{{ task.model_info }}">
+                                        <i class="fas fa-cog me-1"></i> {{ task.model_info }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Not specified</span>
+                            {% endif %}
+                        </div>
+                        {% if task.model_info %}
+                            <div class="mt-1 small text-muted">
+                                {% if "anthropic" in task.model_info|lower %}
+                                    <i class="fas fa-robot me-1"></i> Using Anthropic's advanced Claude model
+                                {% elif "openai" in task.model_info|lower %}
+                                    <i class="fas fa-brain me-1"></i> Using OpenAI's powerful GPT model
+                                {% elif "default" in task.model_info|lower %}
+                                    <i class="fas fa-cog me-1"></i> Using system default AI model
+                                {% else %}
+                                    <i class="fas fa-cog me-1"></i> AI model
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         Created
@@ -123,9 +311,24 @@
             <div class="tab-pane fade" id="visualization" role="tabpanel" aria-labelledby="visualization-tab">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">Task Execution Timeline</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Task Execution Timeline</h5>
+                            
+                            <!-- Debug Controls -->
+                            <div class="debug-controls">
+                                <button id="test-timeline-btn" class="btn btn-sm btn-outline-secondary" 
+                                        onclick="testTimeline()" type="button">
+                                    <i class="fas fa-bug me-1"></i> Test Timeline
+                                </button>
+                                <button id="clear-timeline-btn" class="btn btn-sm btn-outline-danger ms-2" 
+                                        onclick="clearTimeline()" type="button">
+                                    <i class="fas fa-trash me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        
                         <div class="visualization-container">
-                            <div class="timeline-view" id="task-timeline">
+                            <div class="timeline-view my-4" id="task-timeline" style="min-height: 200px;">
                                 <div class="text-muted text-center py-3" id="no-timeline-message">
                                     <i class="fas fa-project-diagram fa-2x mb-2"></i>
                                     <div>Task execution timeline will appear here once the task starts running.</div>
@@ -133,9 +336,9 @@
                             </div>
                             
                             <!-- Task Decomposition Graph (original visualization) -->
-                            <div class="mt-4">
+                            <div class="mt-5 pt-3 border-top">
                                 <h5 class="card-subtitle mb-3">Task Decomposition Graph</h5>
-                                <div id="dependency-graph"></div>
+                                <div id="dependency-graph" style="border: 1px solid #e9ecef; height: 500px; background-color: #f8f9fa;"></div>
                                 <div class="text-muted text-center py-3" id="no-graph-message">
                                     <i class="fas fa-project-diagram fa-2x mb-2"></i>
                                     <div>Dependency graph will appear here once task is decomposed.</div>
@@ -203,28 +406,324 @@
 <!-- Highlight.js for code highlighting -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const taskId = "{{ task.task_id }}";
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
         const logConsole = document.getElementById('log-console');
         const logEmptyMessage = document.getElementById('log-empty-message');
-        const noGraphMessage = document.getElementById('no-graph-message');
-        const noTimelineMessage = document.getElementById('no-timeline-message');
-        const noCodeMessage = document.getElementById('no-code-message');
-        const noResultMessage = document.getElementById('no-result-message');
-        const codeBlocks = document.getElementById('code-blocks');
-        const dependencyGraph = document.getElementById('dependency-graph');
         const taskTimeline = document.getElementById('task-timeline');
+        const noTimelineMessage = document.getElementById('no-timeline-message');
+        const dependencyGraph = document.getElementById('dependency-graph');
+        const noGraphMessage = document.getElementById('no-graph-message');
+        const noCodeMessage = document.getElementById('no-code-message');
+        const codeContainer = document.getElementById('code-container');
+        const resultContainer = document.getElementById('result-container');
+        const noResultMessage = document.getElementById('no-result-message');
         
+        // Task ID from the page
+        const taskId = '{{ task.task_id }}';
+        
+        // Track state
+        let lastCheckTime = Date.now();
+        let eventsProcessed = 0;
         let isFirstLog = true;
-        let eventsProcessed = 0; // Track how many events we've processed
+        
+        console.log(`Task detail page loaded for task: ${taskId}`);
+        console.log(`Log console exists: ${!!logConsole}, Empty message exists: ${!!logEmptyMessage}`);
+        
+        // If task is completed, hide the empty message immediately
+        {% if task.status == 'completed' and task.result %}
+        if (logEmptyMessage) {
+            console.log('Task is completed with result, hiding empty message');
+            logEmptyMessage.style.display = 'none';
+        }
+        {% endif %}
+        
+        // Initialize dependency graph
+        function initializeDependencyGraph() {
+            // Implementation remains the same
+        }
+        
+        // Auto-refresh mechanism - check for new logs every 3 seconds
+        function setupAutoRefresh() {
+            setInterval(() => {
+                // Only refresh if it's been more than 3 seconds since last data received
+                const now = Date.now();
+                if (now - lastCheckTime > 3000) {
+                    console.log('Auto-refreshing logs...');
+                    fetchLogs();
+                    lastCheckTime = now;
+                }
+            }, 3000);
+        }
+        
+        // Function to fetch logs via REST API
+        function fetchLogs() {
+            console.log('Fetching logs for task:', taskId);
+            
+            // Always hide the empty message when fetching logs
+            if (logEmptyMessage) {
+                logEmptyMessage.style.display = 'none';
+            }
+            
+            // Force log console to be visible
+            if (logConsole) {
+                logConsole.style.display = 'block';
+                logConsole.style.visibility = 'visible';
+                logConsole.style.height = 'auto';
+                logConsole.style.minHeight = '200px';
+                logConsole.style.backgroundColor = '#f8f9fa';
+                logConsole.style.padding = '10px';
+                logConsole.style.border = '1px solid #dee2e6';
+                logConsole.style.borderRadius = '0.25rem';
+            } else {
+                console.error('Log console element not found!');
+                return;
+            }
+            
+            fetch(`/api/tasks/${taskId}/events`)
+                .then(response => {
+                    console.log('Log fetch response status:', response.status);
+                    return response.json();
+                })
+                .then(events => {
+                    console.log(`Fetched ${events.length} log events`);
+                    
+                    // Process the logs
+                    if (events && events.length > 0) {
+                        processLogEvents(events);
+                    } else {
+                        console.log('No log events returned from fetch');
+                        
+                        // If no events and first log, show a message
+                        if (isFirstLog && logConsole && logConsole.children.length <= 1) {
+                            createTestLogEntry("No logs available yet. Waiting for task execution...");
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    // Show error in log console
+                    if (logConsole) {
+                        createTestLogEntry(`Error fetching logs: ${error.message}`);
+                    }
+                });
+        }
+        
+        // Function to process log events
+        function processLogEvents(events) {
+            if (!events || events.length === 0) {
+                console.log('No events to process');
+                return;
+            }
+            
+            console.log(`Processing ${events.length} log events, previously processed: ${eventsProcessed}`);
+            
+            // Update last check time
+            lastCheckTime = Date.now();
+            
+            // Always make sure empty message is hidden if we have events
+            if (logEmptyMessage) {
+                logEmptyMessage.style.display = 'none';
+                console.log('Hiding log empty message');
+            }
+            
+            isFirstLog = false;
+            
+            // Keep track of new entries to check if any were added
+            let newEntriesAdded = 0;
+            
+            // Process each event
+            events.forEach((event, index) => {
+                // Skip already processed events
+                if (index < eventsProcessed) {
+                    return;
+                }
+                
+                try {
+                    // Create log entry with direct DOM manipulation
+                    const logEntry = document.createElement('div');
+                    logEntry.classList.add('log-entry', `log-${event.level}`);
+                    logEntry.style.display = 'block'; // Force display
+                    
+                    // Create timestamp
+                    const timestamp = document.createElement('span');
+                    timestamp.classList.add('timestamp');
+                    timestamp.textContent = event.formatted_time || new Date(event.timestamp * 1000).toLocaleTimeString();
+                    
+                    // Create message
+                    const message = document.createElement('span');
+                    message.textContent = event.message;
+                    
+                    // Append to log entry
+                    logEntry.appendChild(timestamp);
+                    logEntry.appendChild(message);
+                    
+                    // Append to log console
+                    logConsole.appendChild(logEntry);
+                    newEntriesAdded++;
+                    
+                    // Add event to timeline visualization
+                    try {
+                        addTimelineEvent(event);
+                    } catch (err) {
+                        console.error('Error adding timeline event:', err);
+                    }
+                    
+                    // If it's a code log, add to code blocks
+                    if (event.level === 'code' && event.data && event.data.code) {
+                        processCodeEvent(event);
+                    }
+                    
+                    // If it's a result log, update the result tab
+                    if (event.level === 'result' && event.data) {
+                        processResultEvent(event);
+                    }
+                } catch (error) {
+                    console.error('Error processing log event:', error, event);
+                }
+            });
+            
+            // Update processed count
+            eventsProcessed = Math.max(eventsProcessed, events.length);
+            
+            // Scroll to bottom if we added new entries
+            if (newEntriesAdded > 0 && logConsole) {
+                logConsole.scrollTop = logConsole.scrollHeight;
+                console.log(`Added ${newEntriesAdded} new log entries`);
+            }
+        }
         
         // Socket.IO connection
-        const socket = io();
-        
-        socket.on('connect', () => {
-            console.log('Connected to server');
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
         });
         
+        socket.on('connect', () => {
+            console.log('Connected to Socket.IO server');
+            createTestLogEntry("Connected to server. Loading logs...");
+            
+            // Fetch logs immediately to ensure we have the latest data
+            fetchLogs();
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Socket.IO connection error:', error);
+            createTestLogEntry(`Connection error: ${error.message}. Using REST API fallback.`);
+            
+            // Try to fetch logs via REST API as fallback
+            fetchLogs();
+        });
+        
+        socket.on('disconnect', (reason) => {
+            console.warn('Socket.IO disconnected:', reason);
+            createTestLogEntry(`Disconnected: ${reason}. Using REST API fallback.`);
+            
+            // Try to fetch logs via REST API as fallback
+            fetchLogs();
+        });
+        
+        socket.on('log_event', (event) => {
+            console.log('Received real-time log event:', event.level, event.message.substring(0, 50));
+            lastCheckTime = Date.now(); // Update last check time
+            
+            if (event.task_id === taskId) {
+                // Process the single event
+                processLogEvents([event]);
+            }
+        });
+        
+        // Add back task event handling
+        socket.on('task_event', (data) => {
+            console.log('Received task event:', data.event_type);
+            lastCheckTime = Date.now(); // Update last check time
+            
+            if (data.task && data.task.task_id === taskId) {
+                // Update task status
+                const statusBadges = document.querySelectorAll('.badge');
+                statusBadges.forEach(badge => {
+                    badge.classList.remove('bg-secondary', 'bg-primary', 'bg-success', 'bg-danger');
+                    if (data.task.status === 'pending') {
+                        badge.classList.add('bg-secondary');
+                        badge.textContent = 'Pending';
+                    } else if (data.task.status === 'running') {
+                        badge.classList.add('bg-primary');
+                        badge.textContent = 'Running';
+                    } else if (data.task.status === 'completed') {
+                        badge.classList.add('bg-success');
+                        badge.textContent = 'Completed';
+                        
+                        // Force refresh logs to get final state
+                        fetchLogs();
+                    } else if (data.task.status === 'failed') {
+                        badge.classList.add('bg-danger');
+                        badge.textContent = 'Failed';
+                        
+                        // Force refresh logs to get error details
+                        fetchLogs();
+                    }
+                });
+                
+                // If task is completed or failed, reload the page to get full data
+                if (data.event_type === 'task_completed' || data.event_type === 'task_failed') {
+                    console.log('Task completed or failed, reloading page in 2 seconds...');
+                    createTestLogEntry("Task completed. Reloading page in 2 seconds...");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            }
+        });
+        
+        // Set up auto-refresh
+        setupAutoRefresh();
+        
+        // Create a simple dummy log entry to test log display
+        function createTestLogEntry(message = "Page loaded, waiting for logs...") {
+            console.log("Creating test log entry:", message);
+            if (logConsole) {
+                // Hide empty message
+                if (logEmptyMessage) {
+                    logEmptyMessage.style.display = 'none';
+                }
+                
+                // Create log entry
+                const logEntry = document.createElement('div');
+                logEntry.classList.add('log-entry', 'log-info');
+                logEntry.style.display = 'block'; // Force display
+                
+                // Create timestamp
+                const timestamp = document.createElement('span');
+                timestamp.classList.add('timestamp');
+                timestamp.textContent = new Date().toLocaleTimeString();
+                
+                // Create message
+                const messageSpan = document.createElement('span');
+                messageSpan.textContent = message;
+                
+                // Append to log entry
+                logEntry.appendChild(timestamp);
+                logEntry.appendChild(messageSpan);
+                logConsole.appendChild(logEntry);
+                
+                console.log("Test log entry added to console");
+                
+                // Force visibility
+                logConsole.style.display = 'block';
+                logConsole.style.visibility = 'visible';
+            }
+        }
+        
+        // Add a test log entry immediately
+        createTestLogEntry();
+        
+        // Force initial load of logs with a small delay to ensure DOM is ready
+        setTimeout(() => {
+            console.log("Initial log fetch after delay");
+            fetchLogs();
+        }, 500); // 500ms delay
+
         // Timeline event handler
         function addTimelineEvent(event) {
             console.log('Adding timeline event:', event.level, event.message); // Debug
@@ -256,7 +755,7 @@
             
             const timelineTime = document.createElement('div');
             timelineTime.classList.add('timeline-time');
-            timelineTime.textContent = event.formatted_time;
+            timelineTime.textContent = event.formatted_time || new Date(event.timestamp * 1000).toLocaleTimeString();
             
             // Create timeline content
             const timelineContent = document.createElement('div');
@@ -363,309 +862,371 @@
             
             taskTimeline.appendChild(timelineItem);
         }
-        
-        socket.on('log_event', (event) => {
-            if (event.task_id === taskId) {
-                if (isFirstLog) {
-                    logEmptyMessage.style.display = 'none';
-                    isFirstLog = false;
-                }
-                
-                // Create log entry
-                const logEntry = document.createElement('div');
-                logEntry.classList.add('log-entry', `log-${event.level}`);
-                
-                // Create timestamp
-                const timestamp = document.createElement('span');
-                timestamp.classList.add('timestamp');
-                timestamp.textContent = event.formatted_time;
-                
-                // Create message
-                const message = document.createElement('span');
-                message.textContent = event.message;
-                
-                // Append to log entry
-                logEntry.appendChild(timestamp);
-                logEntry.appendChild(message);
-                logConsole.appendChild(logEntry);
-                
-                // Scroll to bottom
-                logConsole.scrollTop = logConsole.scrollHeight;
-                
-                // Add event to timeline visualization
-                addTimelineEvent(event);
-                
-                // If it's a code log, add to code blocks
-                if (event.level === 'code' && event.data && event.data.code) {
-                    noCodeMessage.style.display = 'none';
-                    
-                    const codeCard = document.createElement('div');
-                    codeCard.classList.add('card', 'mb-3');
-                    
-                    const cardBody = document.createElement('div');
-                    cardBody.classList.add('card-body');
-                    
-                    const cardTitle = document.createElement('h6');
-                    cardTitle.classList.add('card-title');
-                    cardTitle.textContent = event.message;
-                    
-                    const pre = document.createElement('pre');
-                    pre.classList.add('mb-0');
-                    
-                    const code = document.createElement('code');
-                    code.classList.add('language-python');
-                    code.textContent = event.data.code;
-                    
-                    pre.appendChild(code);
-                    cardBody.appendChild(cardTitle);
-                    cardBody.appendChild(pre);
-                    codeCard.appendChild(cardBody);
-                    codeBlocks.appendChild(codeCard);
-                    
-                    // Highlight code
-                    hljs.highlightElement(code);
-                }
-                
-                // If it's a result log, update the result tab
-                if (event.level === 'result' && event.data) {
-                    if (noResultMessage) {
-                        noResultMessage.style.display = 'none';
-                    }
-                    
-                    // Find result section
-                    const resultContainer = document.querySelector('.tab-pane#result .card-body');
-                    if (resultContainer) {
-                        // Clear any existing "no result" message
-                        const noResultMsg = resultContainer.querySelector('#no-result-message');
-                        if (noResultMsg) {
-                            noResultMsg.style.display = 'none';
-                        }
-                        
-                        // Create success container if it doesn't exist
-                        let successContainer = resultContainer.querySelector('.p-3.bg-light.rounded');
-                        if (!successContainer) {
-                            successContainer = document.createElement('div');
-                            successContainer.className = 'p-3 bg-light rounded';
-                            
-                            // Add success header
-                            const header = document.createElement('h6');
-                            header.className = 'mb-3';
-                            header.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Task Completed Successfully';
-                            successContainer.appendChild(header);
-                            
-                            resultContainer.appendChild(successContainer);
-                        }
-                        
-                        let resultContent = null;
-                        
-                        // Check if it's a factorial result
-                        const resultData = event.data.result || '';
-                        if (typeof resultData === 'string' && 
-                            (resultData.toLowerCase().includes('factorial of 10 is') || 
-                             resultData.includes('3,628,800'))) {
-                            
-                            // Create special factorial display
-                            let factorialDiv = successContainer.querySelector('.alert.alert-success');
-                            if (!factorialDiv) {
-                                // Remove regular result display if exists
-                                const oldContent = successContainer.querySelector('#result-content');
-                                if (oldContent && oldContent.parentNode && oldContent.parentNode.parentNode) {
-                                    successContainer.removeChild(oldContent.parentNode.parentNode);
-                                }
-                                
-                                factorialDiv = document.createElement('div');
-                                factorialDiv.className = 'alert alert-success';
-                                
-                                const factorialHeader = document.createElement('h4');
-                                factorialHeader.className = 'alert-heading mb-2';
-                                factorialHeader.textContent = 'Factorial Calculation Result';
-                                
-                                const factorialResult = document.createElement('p');
-                                factorialResult.className = 'mb-0';
-                                factorialResult.id = 'result-content';
-                                
-                                factorialDiv.appendChild(factorialHeader);
-                                factorialDiv.appendChild(factorialResult);
-                                successContainer.appendChild(factorialDiv);
-                            }
-                            
-                            // Update the factorial result
-                            resultContent = factorialDiv.querySelector('p');
-                            if (resultContent) {
-                                resultContent.textContent = resultData;
-                            }
-                        } else {
-                            // Regular result display
-                            let regularResultDiv = successContainer.querySelector('div:not(.alert)');
-                            if (!regularResultDiv) {
-                                // Create regular result container
-                                regularResultDiv = document.createElement('div');
-                                regularResultDiv.className = 'mb-2';
-                                regularResultDiv.innerHTML = '<strong>Result:</strong>';
-                                
-                                const pre = document.createElement('pre');
-                                pre.className = 'mb-0';
-                                
-                                const code = document.createElement('code');
-                                code.id = 'result-content';
-                                
-                                pre.appendChild(code);
-                                successContainer.appendChild(regularResultDiv);
-                                successContainer.appendChild(pre);
-                            }
-                            
-                            // Update the regular result
-                            resultContent = successContainer.querySelector('#result-content');
-                            if (resultContent) {
-                                resultContent.textContent = resultData;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        
-        socket.on('task_event', (data) => {
-            if (data.task && data.task.task_id === taskId) {
-                // Update task status
-                const statusBadges = document.querySelectorAll('.badge');
-                statusBadges.forEach(badge => {
-                    badge.classList.remove('bg-secondary', 'bg-primary', 'bg-success', 'bg-danger');
-                    if (data.task.status === 'pending') {
-                        badge.classList.add('bg-secondary');
-                        badge.textContent = 'Pending';
-                    } else if (data.task.status === 'running') {
-                        badge.classList.add('bg-primary');
-                        badge.textContent = 'Running';
-                    } else if (data.task.status === 'completed') {
-                        badge.classList.add('bg-success');
-                        badge.textContent = 'Completed';
-                    } else if (data.task.status === 'failed') {
-                        badge.classList.add('bg-danger');
-                        badge.textContent = 'Failed';
-                    }
-                });
-                
-                // If task is completed, reload the page to get full data
-                if (data.event_type === 'task_completed' || data.event_type === 'task_failed') {
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
-                }
-            }
-        });
-        
-        // Start task button
-        const startTaskButton = document.querySelector('.start-task');
-        if (startTaskButton) {
-            startTaskButton.addEventListener('click', () => {
-                fetch(`/api/tasks/${taskId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
+
+        // Debug function to test timeline
+        function testTimeline() {
+            console.log('Testing timeline functionality...');
+            
+            // Get the task ID
+            const taskId = "{{ task.task_id }}";
+            
+            // Fetch test events from the debug endpoint
+            fetch(`/api/tasks/${taskId}/debug/timeline-test`)
                 .then(response => response.json())
                 .then(data => {
-                    // Update UI
-                    startTaskButton.disabled = true;
-                    startTaskButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Task Started';
+                    console.log('Timeline test response:', data);
+                    alert(`Generated test events for timeline. Check console for details.`);
                 })
                 .catch(error => {
-                    console.error('Error starting task:', error);
-                    alert('Error starting task');
+                    console.error('Error testing timeline:', error);
+                    alert(`Error testing timeline: ${error.message}`);
                 });
-            });
         }
         
-        // Load existing logs
-        fetch(`/api/tasks/${taskId}/events`)
-            .then(response => response.json())
-            .then(events => {
-                console.log('Loaded events:', events.length); // Debug
+        // Debug function to clear timeline
+        function clearTimeline() {
+            console.log('Clearing timeline...');
+            if (taskTimeline) {
+                taskTimeline.innerHTML = '';
+                taskTimeline.classList.add('timeline');
+                console.log('Timeline cleared');
                 
-                if (events && events.length > 0) {
-                    logEmptyMessage.style.display = 'none';
-                    isFirstLog = false;
-                    
-                    // Clear no timeline message
-                    if (noTimelineMessage) {
-                        noTimelineMessage.style.display = 'none';
+                // Reset counter
+                eventsProcessed = 0;
+                
+                // Re-initialize with a single event
+                const sampleEvent = {
+                    level: 'info',
+                    message: 'Timeline cleared and reset',
+                    formatted_time: new Date().toLocaleTimeString(),
+                    timestamp: Math.floor(Date.now() / 1000),
+                    task_id: "{{ task.task_id }}"
+                };
+                
+                try {
+                    addTimelineEvent(sampleEvent);
+                    console.log('Added reset event to timeline');
+                } catch (err) {
+                    console.error('Error adding reset event:', err);
+                }
+            }
+        }
+        
+        // Make debug functions available globally for console testing
+        window.testTimeline = testTimeline;
+        window.clearTimeline = clearTimeline;
+        
+        // Add a function to manually add a timeline event from console
+        window.addDebugEvent = function(level, message) {
+            const event = {
+                level: level || 'info',
+                message: message || 'Debug event added manually',
+                formatted_time: new Date().toLocaleTimeString(),
+                timestamp: Math.floor(Date.now() / 1000),
+                task_id: "{{ task.task_id }}"
+            };
+            
+            try {
+                addTimelineEvent(event);
+                console.log('Manually added debug event to timeline');
+                return true;
+            } catch (err) {
+                console.error('Error adding manual event:', err);
+                return false;
+            }
+        };
+    });
+
+    // Initialize dependency graph if data is available
+    {% if graph_data %}
+    if (dependencyGraph) {
+        console.log('Initializing dependency graph with data:', JSON.parse('{{ graph_data|tojson|safe }}'));
+        
+        // Hide the "no graph" message
+        if (noGraphMessage) {
+            noGraphMessage.style.display = 'none';
+        }
+        
+        // Initialize graph visualization with vis.js
+        try {
+            // Check if vis.js is loaded
+            if (typeof vis === 'undefined') {
+                console.error('vis.js library not loaded');
+                if (dependencyGraph) {
+                    dependencyGraph.innerHTML = '<div class="alert alert-danger">Error: vis.js library not found. Please check network connections.</div>';
+                }
+                return;
+            }
+            
+            // Check if graph data is valid
+            const graphData = JSON.parse('{{ graph_data|tojson|safe }}');
+            const nodes = graphData.nodes;
+            const edges = graphData.edges;
+            
+            if (!Array.isArray(nodes) || nodes.length === 0) {
+                console.error('Invalid or empty nodes array in graph data');
+                if (dependencyGraph) {
+                    dependencyGraph.innerHTML = '<div class="alert alert-warning">No nodes found in decomposition data.</div>';
+                }
+                return;
+            }
+            
+            console.log(`Graph data contains ${nodes.length} nodes and ${edges.length} edges`);
+            
+            // Configure dependency graph colors
+            const nodeColors = {
+                completed: '#28a745', // Green for completed tasks
+                pending: '#6c757d',   // Gray for pending tasks
+                running: '#007bff',   // Blue for running tasks
+                failed: '#dc3545'     // Red for failed tasks
+            };
+            
+            // Format nodes with proper colors and styles
+            const formattedNodes = nodes.map(node => {
+                console.log(`Processing node: ${node.id}, status: ${node.status}`);
+                return {
+                    id: node.id,
+                    label: node.label || node.id,
+                    title: node.description || node.id,
+                    color: {
+                        background: nodeColors[node.status] || '#6c757d',
+                        border: '#333333',
+                        highlight: { background: nodeColors[node.status] || '#6c757d', border: '#000000' }
+                    },
+                    font: { color: '#ffffff', size: 12 },
+                    shape: 'box',
+                    margin: 10,
+                    shadow: true
+                };
+            });
+            
+            // Setup graph in vis.js
+            try {
+                const data = {
+                    nodes: new vis.DataSet(formattedNodes),
+                    edges: new vis.DataSet(edges)
+                };
+                
+                const options = {
+                    layout: {
+                        hierarchical: {
+                            direction: 'UD',
+                            sortMethod: 'directed',
+                            levelSeparation: 100,
+                            nodeSpacing: 150,
+                            edgeMinimization: true
+                        }
+                    },
+                    physics: {
+                        enabled: false
+                    },
+                    edges: {
+                        arrows: 'to',
+                        smooth: {
+                            type: 'cubicBezier',
+                            roundness: 0.5
+                        },
+                        color: '#666666',
+                        width: 1
+                    },
+                    interaction: {
+                        dragNodes: true,
+                        navigationButtons: true,
+                        keyboard: true,
+                        hover: true
+                    }
+                };
+                
+                // Create the network
+                const network = new vis.Network(dependencyGraph, data, options);
+                
+                // Add event listener for stabilization complete
+                network.on("stabilizationIterationsDone", function () {
+                    console.log("Graph stabilized");
+                    // Fit to the container once done
+                    network.fit();
+                });
+                
+                console.log('Dependency graph initialized successfully');
+            } catch (innerError) {
+                console.error('Error creating network:', innerError);
+                if (dependencyGraph) {
+                    dependencyGraph.innerHTML = `<div class="alert alert-danger">Error creating network: ${innerError.message}</div>`;
+                }
+            }
+        } catch (error) {
+            console.error('Error initializing dependency graph:', error);
+            // Show error in dependency graph container
+            if (dependencyGraph) {
+                dependencyGraph.innerHTML = `<div class="alert alert-danger">Error initializing graph: ${error.message}</div>`;
+            }
+        }
+    } else {
+        console.log('Dependency graph container not found in DOM');
+    }
+    {% else %}
+    if (dependencyGraph) {
+        console.log('No graph data available, using empty graph');
+        
+        // Create empty graph data
+        const emptyGraphData = {
+            nodes: [],
+            edges: []
+        };
+        
+        // Show the "no graph" message
+        if (noGraphMessage) {
+            noGraphMessage.style.display = 'block';
+        }
+    }
+    {% endif %}
+
+    // Helper function to process code events
+    function processCodeEvent(event) {
+        if (!event || !event.data || !event.data.code) {
+            console.warn('Invalid code event:', event);
+            return;
+        }
+        
+        if (noCodeMessage) {
+            noCodeMessage.style.display = 'none';
+        }
+        
+        const codeCard = document.createElement('div');
+        codeCard.classList.add('card', 'mb-3');
+        
+        const cardBody = document.createElement('div');
+        cardBody.classList.add('card-body');
+        
+        const cardTitle = document.createElement('h6');
+        cardTitle.classList.add('card-title');
+        cardTitle.textContent = event.message;
+        
+        const pre = document.createElement('pre');
+        pre.classList.add('mb-0');
+        
+        const code = document.createElement('code');
+        code.classList.add('language-python');
+        code.textContent = event.data.code;
+        
+        pre.appendChild(code);
+        cardBody.appendChild(cardTitle);
+        cardBody.appendChild(pre);
+        codeCard.appendChild(cardBody);
+        codeContainer.appendChild(codeCard);
+        
+        // Highlight code
+        try {
+            hljs.highlightElement(code);
+        } catch (e) {
+            console.error('Error highlighting code:', e);
+        }
+    }
+
+    // Helper function to process result events
+    function processResultEvent(event) {
+        if (!event || !event.data) {
+            console.warn('Invalid result event:', event);
+            return;
+        }
+        
+        console.log('Processing result event:', event);
+        
+        if (noResultMessage) {
+            noResultMessage.style.display = 'none';
+        }
+        
+        // Find result section
+        const resultContainer = document.querySelector('.tab-pane#result .card-body');
+        if (resultContainer) {
+            // Clear any existing "no result" message
+            const noResultMsg = resultContainer.querySelector('#no-result-message');
+            if (noResultMsg) {
+                noResultMsg.style.display = 'none';
+            }
+            
+            // Create success container if it doesn't exist
+            let successContainer = resultContainer.querySelector('.p-3.bg-light.rounded');
+            if (!successContainer) {
+                successContainer = document.createElement('div');
+                successContainer.className = 'p-3 bg-light rounded';
+                
+                // Add success header
+                const header = document.createElement('h6');
+                header.className = 'mb-3';
+                header.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Task Completed Successfully';
+                successContainer.appendChild(header);
+                
+                resultContainer.appendChild(successContainer);
+            }
+            
+            let resultContent = null;
+            
+            // Check if it's a factorial result
+            const resultData = event.data.result || '';
+            if (typeof resultData === 'string' && (resultData.toLowerCase().includes('factorial of 10 is') || resultData.includes('3,628,800'))) {
+                
+                // Create special factorial display
+                let factorialDiv = successContainer.querySelector('.alert.alert-success');
+                if (!factorialDiv) {
+                    // Remove regular result display if exists
+                    const oldContent = successContainer.querySelector('#result-content');
+                    if (oldContent && oldContent.parentNode && oldContent.parentNode.parentNode) {
+                        try {
+                            successContainer.removeChild(oldContent.parentNode.parentNode);
+                        } catch (e) {
+                            console.error('Error removing old content:', e);
+                        }
                     }
                     
-                    // Enable this to create a clean timeline
-                    // if (taskTimeline) {
-                    //    taskTimeline.innerHTML = '';
-                    //    taskTimeline.classList.add('timeline');
-                    // }
+                    factorialDiv = document.createElement('div');
+                    factorialDiv.className = 'alert alert-success';
                     
-                    events.forEach(event => {
-                        eventsProcessed++;
-                        
-                        // Create log entry
-                        const logEntry = document.createElement('div');
-                        logEntry.classList.add('log-entry', `log-${event.level}`);
-                        
-                        // Create timestamp
-                        const timestamp = document.createElement('span');
-                        timestamp.classList.add('timestamp');
-                        timestamp.textContent = event.formatted_time;
-                        
-                        // Create message
-                        const message = document.createElement('span');
-                        message.textContent = event.message;
-                        
-                        // Append to log entry
-                        logEntry.appendChild(timestamp);
-                        logEntry.appendChild(message);
-                        logConsole.appendChild(logEntry);
-                        
-                        // Add event to timeline visualization - critical for rebuilding timeline
-                        try {
-                            addTimelineEvent(event);
-                        } catch (err) {
-                            console.error('Error adding timeline event:', err);
-                        }
-                        
-                        // If it's a code log, add to code blocks
-                        if (event.level === 'code' && event.data && event.data.code) {
-                            noCodeMessage.style.display = 'none';
-                            
-                            const codeCard = document.createElement('div');
-                            codeCard.classList.add('card', 'mb-3');
-                            
-                            const cardBody = document.createElement('div');
-                            cardBody.classList.add('card-body');
-                            
-                            const cardTitle = document.createElement('h6');
-                            cardTitle.classList.add('card-title');
-                            cardTitle.textContent = event.message;
-                            
-                            const pre = document.createElement('pre');
-                            pre.classList.add('mb-0');
-                            
-                            const code = document.createElement('code');
-                            code.classList.add('language-python');
-                            code.textContent = event.data.code;
-                            
-                            pre.appendChild(code);
-                            cardBody.appendChild(cardTitle);
-                            cardBody.appendChild(pre);
-                            codeCard.appendChild(cardBody);
-                            codeBlocks.appendChild(codeCard);
-                            
-                            // Highlight code
-                            hljs.highlightElement(code);
-                        }
-                    });
+                    const factorialHeader = document.createElement('h4');
+                    factorialHeader.className = 'alert-heading mb-2';
+                    factorialHeader.textContent = 'Factorial Calculation Result';
                     
-                    // Scroll to bottom
-                    logConsole.scrollTop = logConsole.scrollHeight;
+                    const factorialResult = document.createElement('p');
+                    factorialResult.className = 'mb-0';
+                    factorialResult.id = 'result-content';
+                    
+                    factorialDiv.appendChild(factorialHeader);
+                    factorialDiv.appendChild(factorialResult);
+                    successContainer.appendChild(factorialDiv);
                 }
-            })
-            .catch(error => {
-                console.error('Error loading task events:', error);
-            });
-    });
+                
+                // Update the factorial result
+                resultContent = factorialDiv.querySelector('p');
+                if (resultContent) {
+                    resultContent.textContent = resultData;
+                }
+            } else {
+                // Regular result display
+                let regularResultDiv = successContainer.querySelector('div:not(.alert)');
+                if (!regularResultDiv) {
+                    // Create regular result container
+                    regularResultDiv = document.createElement('div');
+                    regularResultDiv.className = 'mb-2';
+                    regularResultDiv.innerHTML = '<strong>Result:</strong>';
+                    
+                    const pre = document.createElement('pre');
+                    pre.className = 'mb-0';
+                    
+                    const code = document.createElement('code');
+                    code.id = 'result-content';
+                    
+                    pre.appendChild(code);
+                    successContainer.appendChild(regularResultDiv);
+                    successContainer.appendChild(pre);
+                }
+                
+                // Update the regular result
+                resultContent = successContainer.querySelector('#result-content');
+                if (resultContent) {
+                    resultContent.textContent = resultData;
+                }
+            }
+        }
+    }
 </script>
 {% endblock %} 
