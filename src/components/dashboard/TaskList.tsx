@@ -113,6 +113,7 @@ const TaskList = ({
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as TaskStatus | 'all')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              aria-label="Filter tasks by status"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -129,6 +130,7 @@ const TaskList = ({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'created' | 'updated')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              aria-label="Sort tasks by field"
             >
               <option value="created">Created Date</option>
               <option value="updated">Last Updated</option>

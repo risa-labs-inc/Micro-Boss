@@ -1,11 +1,20 @@
+"use client";
+
 import Link from 'next/link';
 import { useState } from 'react';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 const Header = () => {
+  const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(prev => !prev);
+  };
+
+  const toggleProfileMenu = () => {
+    setIsProfileMenuOpen(prev => !prev);
   };
 
   return (
@@ -25,10 +34,86 @@ const Header = () => {
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex space-x-6">
+          <nav className="hidden md:flex items-center space-x-6">
             <Link href="/" className="hover:text-blue-300 transition">Dashboard</Link>
             <Link href="/tasks" className="hover:text-blue-300 transition">Tasks</Link>
             <Link href="/settings" className="hover:text-blue-300 transition">Settings</Link>
+            
+            {/* Profile dropdown for desktop */}
+            {user ? (
+              <div className="relative ml-3">
+                <div>
+                  <button
+                    type="button"
+                    className="flex items-center max-w-xs text-sm bg-gray-800 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
+                    id="user-menu-button"
+                    aria-haspopup="true"
+                    onClick={toggleProfileMenu}
+                  >
+                    <span className="sr-only">Open user menu</span>
+                    {user.avatar ? (
+                      <img className="h-8 w-8 rounded-full" src={user.avatar} alt="User avatar" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                        <span className="text-white font-bold">
+                          {user.username?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                </div>
+                
+                {isProfileMenuOpen && (
+                  <div
+                    className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+                    role="menu"
+                    aria-orientation="vertical"
+                    aria-labelledby="user-menu-button"
+                    tabIndex={-1}
+                  >
+                    <div className="block px-4 py-2 text-xs text-gray-500">
+                      Signed in as <span className="font-bold">{user.username}</span>
+                    </div>
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                      tabIndex={-1}
+                      id="user-menu-item-0"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      Your Profile
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                      tabIndex={-1}
+                      id="user-menu-item-1"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      Settings
+                    </Link>
+                    <button
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                      tabIndex={-1}
+                      id="user-menu-item-2"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        logout();
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/login" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">
+                Sign In
+              </Link>
+            )}
           </nav>
 
           {/* Mobile menu button */}
@@ -70,6 +155,30 @@ const Header = () => {
               onClick={() => setIsMenuOpen(false)}>
               Settings
             </Link>
+            {user ? (
+              <>
+                <Link href="/profile" 
+                  className="block hover:text-blue-300 transition py-2"
+                  onClick={() => setIsMenuOpen(false)}>
+                  Profile
+                </Link>
+                <button
+                  className="block hover:text-blue-300 transition py-2 w-full text-left"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    logout();
+                  }}
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <Link href="/login" 
+                className="block hover:text-blue-300 transition py-2"
+                onClick={() => setIsMenuOpen(false)}>
+                Sign In
+              </Link>
+            )}
           </nav>
         )}
       </div>

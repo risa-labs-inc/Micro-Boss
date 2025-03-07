@@ -4,6 +4,7 @@ import './globals.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'highlight.js/styles/github.css';
 import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from '@/lib/contexts/AuthContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,8 +21,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
-        <Toaster position="top-right" />
+        <AuthProvider>
+          {children}
+          <Toaster position="top-right" />
+        </AuthProvider>
       </body>
     </html>
   );
