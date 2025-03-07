@@ -1,0 +1,346 @@
+/* Microboss Web Interface Styles */
+
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2c3e50;
+    --success-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --warning-color: #f39c12;
+    --info-color: #3498db;
+    --light-color: #ecf0f1;
+    --dark-color: #2c3e50;
+}
+
+/* General Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+/* Task Cards */
+.task-card {
+    transition: transform 0.3s ease;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.task-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Status Badges */
+.badge {
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.5em 0.8em;
+    border-radius: 4px;
+}
+
+/* Log Console */
+.log-console {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'Courier New', Courier, monospace;
+    height: 400px;
+    overflow-y: auto;
+}
+
+.log-console .log-info {
+    color: #3498db;
+}
+
+.log-console .log-success {
+    color: #2ecc71;
+}
+
+.log-console .log-warning {
+    color: #f39c12;
+}
+
+.log-console .log-error {
+    color: #e74c3c;
+}
+
+.log-console .log-task {
+    color: #9b59b6;
+}
+
+.log-console .log-code {
+    color: #1abc9c;
+}
+
+.log-console .log-result {
+    color: #e67e22;
+}
+
+.log-console .log-execution {
+    color: #34495e;
+}
+
+.log-console .timestamp {
+    color: #95a5a6;
+    font-size: 0.8rem;
+    margin-right: 8px;
+}
+
+/* Code Display */
+pre {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    position: relative;
+}
+
+pre code {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.copy-code {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #34495e;
+    color: #ecf0f1;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.copy-code:hover {
+    background-color: #2c3e50;
+}
+
+/* Task Visualization */
+.task-visualization {
+    width: 100%;
+    height: 400px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Help Icons */
+.help-icon {
+    color: #95a5a6;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-left: 5px;
+}
+
+.help-icon:hover {
+    color: #7f8c8d;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .log-console {
+        height: 300px;
+    }
+    
+    .task-visualization {
+        height: 300px;
+    }
+}
+
+/* Task Detail Tabs */
+.nav-tabs .nav-link {
+    border: none;
+    color: #7f8c8d;
+    font-weight: 500;
+    padding: 10px 20px;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: transparent;
+    border-bottom: 3px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.tab-content {
+    padding: 20px 0;
+}
+
+/* Task Timeline Visualization */
+.visualization-container {
+    margin-bottom: 2rem;
+}
+
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    background-color: #e9ecef;
+    top: 0;
+    bottom: 0;
+    left: 50px;
+    margin-left: -1px;
+}
+
+.timeline-item {
+    padding-left: 70px;
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-point {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    position: absolute;
+    left: 43px;
+    top: 15px;
+    z-index: 10;
+    box-shadow: 0 0 0 4px #fff;
+}
+
+.timeline-time {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: right;
+    width: 35px;
+}
+
+.timeline-content {
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #ddd;
+}
+
+.timeline-content.border-success {
+    border-left-color: var(--success-color);
+}
+
+.timeline-content.border-danger {
+    border-left-color: var(--danger-color);
+}
+
+.timeline-content.border-warning {
+    border-left-color: var(--warning-color);
+}
+
+.timeline-content.border-info {
+    border-left-color: var(--info-color);
+}
+
+.timeline-content.border-primary {
+    border-left-color: var(--primary-color);
+}
+
+.code-preview, .result-preview {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+.code-snippet {
+    background-color: #272822;
+    color: #f8f8f2;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .timeline::before {
+        left: 30px;
+    }
+    
+    .timeline-item {
+        padding-left: 50px;
+    }
+    
+    .timeline-point {
+        left: 23px;
+    }
+    
+    .timeline-time {
+        width: 20px;
+        font-size: 0.7rem;
+    }
+}
+
+/* Task Dependency Graph */
+#dependency-graph {
+    height: 400px;
+    margin-top: 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+/* Clear existing timeline styles if they conflict */
+.timeline-item .timeline-content h6 {
+    margin-bottom: 0.5rem;
+}
+
+/* Task Execution Timeline */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    background-color: #ecf0f1;
+    top: 0;
+    bottom: 0;
+    left: 50px;
+}
+
+.timeline-item {
+    padding-left: 70px;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-point {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    position: absolute;
+    left: 43px;
+    top: 15px;
+}
+
+.timeline-content {
+    padding: 10px 15px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.timeline-time {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+} 

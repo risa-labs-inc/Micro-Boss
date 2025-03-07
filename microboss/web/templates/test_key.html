@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}API Key Test{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>API Key Test</h1>
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">API Key Validation Results</h5>
+        </div>
+        <div class="card-body">
+            <div id="loading">
+                <p class="text-center">Testing API keys, please wait...</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                </div>
+            </div>
+            <div id="results" class="d-none">
+                <div class="alert mb-3" id="status-alert" role="alert">
+                    <!-- Status message will be inserted here -->
+                </div>
+                <div id="details-section">
+                    <h5>Test Details:</h5>
+                    <ul class="list-group" id="details-list">
+                        <!-- Details will be inserted here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer" id="summary-section">
+            <div id="timestamp" class="text-muted small"></div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">What Next?</h5>
+        </div>
+        <div class="card-body">
+            <div id="success-section" class="d-none">
+                <p class="text-success"><i class="bi bi-check-circle-fill"></i> At least one API key is valid and working correctly!</p>
+                <p>You can now:</p>
+                <ul>
+                    <li><a href="/">Return to the dashboard</a> and start creating tasks</li>
+                    <li><a href="/tasks">View your existing tasks</a></li>
+                </ul>
+            </div>
+            <div id="error-section" class="d-none">
+                <p class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> No API keys are working correctly.</p>
+                <p>How to fix this:</p>
+                <ol>
+                    <li>
+                        <strong>Option 1:</strong> Configure Anthropic API key
+                        <ul>
+                            <li>Get a new API key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener">Anthropic Console</a></li>
+                            <li>Update your <code>.env</code> file with: <code>ANTHROPIC_API_KEY=your-new-key</code></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Option 2:</strong> Configure OpenAI API key
+                        <ul>
+                            <li>Get a new API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a></li>
+                            <li>Update your <code>.env</code> file with: <code>OPENAI_API_KEY=your-new-key</code></li>
+                        </ul>
+                    </li>
+                    <li>Restart the application</li>
+                    <li><a href="/test-key">Run this test again</a></li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const statusAlert = document.getElementById('status-alert');
+        const detailsList = document.getElementById('details-list');
+        const timestamp = document.getElementById('timestamp');
+        const successSection = document.getElementById('success-section');
+        const errorSection = document.getElementById('error-section');
+
+        // Helper function to create a status badge
+        function createStatusBadge(status) {
+            const badges = {
+                'success': 'bg-success',
+                'error': 'bg-danger',
+                'warning': 'bg-warning',
+                'info': 'bg-info',
+                'pending': 'bg-secondary'
+            };
+            
+            const badgeClass = badges[status] || 'bg-secondary';
+            return `<span class="badge ${badgeClass}">${status}</span>`;
+        }
+
+        // Test the API key
+        fetch('/api/test-key')
+            .then(response => response.json())
+            .then(data => {
+                // Update timestamp
+                timestamp.textContent = `Test completed at ${data.timestamp}`;
+                
+                // Update overall status
+                if (data.status === 'success') {
+                    statusAlert.className = 'alert alert-success';
+                    statusAlert.innerHTML = '<strong>Success!</strong> At least one API key is valid and working correctly.';
+                    successSection.classList.remove('d-none');
+                } else {
+                    statusAlert.className = 'alert alert-danger';
+                    statusAlert.innerHTML = '<strong>Error!</strong> No API keys are working correctly.';
+                    errorSection.classList.remove('d-none');
+                }
+                
+                // Add details
+                data.details.forEach(detail => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>${detail.step}</strong>
+                            ${createStatusBadge(detail.status)}
+                        </div>
+                        <div class="mt-2">${detail.message}</div>
+                    `;
+                    detailsList.appendChild(li);
+                });
+                
+                // Show results
+                loading.classList.add('d-none');
+                results.classList.remove('d-none');
+            })
+            .catch(error => {
+                // Show error
+                statusAlert.className = 'alert alert-danger';
+                statusAlert.innerHTML = `<strong>Error!</strong> Failed to test API key: ${error.message}`;
+                
+                // Show results
+                loading.classList.add('d-none');
+                results.classList.remove('d-none');
+                errorSection.classList.remove('d-none');
+            });
+    });
+</script>
+{% endblock %} 

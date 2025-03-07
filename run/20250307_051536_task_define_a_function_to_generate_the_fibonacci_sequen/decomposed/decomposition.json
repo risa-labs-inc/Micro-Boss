@@ -1,0 +1,35 @@
+{
+  "subproblems": [
+    [
+      "task_1",
+      "Define a function to generate the Fibonacci sequence.",
+      []
+    ],
+    [
+      "task_2",
+      "Define a function to limit the Fibonacci sequence to a given number of terms.",
+      [
+        "task_1"
+      ]
+    ]
+  ],
+  "levels": [
+    [
+      [
+        "task_1",
+        "Define a function to generate the Fibonacci sequence.",
+        []
+      ]
+    ],
+    [
+      [
+        "task_2",
+        "Define a function to limit the Fibonacci sequence to a given number of terms.",
+        [
+          "task_1"
+        ]
+      ]
+    ]
+  ],
+  "aggregation_code": "results.get('task_2', None)"
+}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks - Microboss{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tasks me-2"></i>Tasks</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+        <i class="fas fa-plus me-2"></i>New Task
+    </button>
+</div>
+
+{% if tasks %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Task</th>
+                <th>Status</th>
+                <th>Depth</th>
+                <th>Created</th>
+                <th>Duration</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('task_detail', task_id=task.task_id) }}" class="fw-bold text-decoration-none">
+                        {{ task.description }}
+                    </a>
+                </td>
+                <td>
+                    {% if task.status.value == 'pending' %}
+                    <span class="badge bg-secondary">Pending</span>
+                    {% elif task.status.value == 'running' %}
+                    <span class="badge bg-primary">Running</span>
+                    {% elif task.status.value == 'completed' %}
+                    <span class="badge bg-success">Completed</span>
+                    {% elif task.status.value == 'failed' %}
+                    <span class="badge bg-danger">Failed</span>
+                    {% endif %}
+                </td>
+                <td>{{ task.depth }}</td>
+                <td>{{ task.created_at | int | datetime }}</td>
+                <td>
+                    {% if task.completed_at and task.started_at %}
+                    {{ (task.completed_at - task.started_at) | int | duration }}
+                    {% elif task.started_at %}
+                    Running...
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('task_detail', task_id=task.task_id) }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    {% if task.status.value == 'pending' %}
+                    <button class="btn btn-sm btn-success start-task" data-task-id="{{ task.task_id }}">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>No tasks found. Create a new task to get started.
+</div>
+{% endif %}
+
+<!-- New Task Modal -->
+<div class="modal fade" id="newTaskModal" tabindex="-1" aria-labelledby="newTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newTaskModalLabel">New Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('tasks') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="task_description" class="form-label">Task Description</label>
+                        <textarea class="form-control" id="task_description" name="task_description" rows="3" required></textarea>
+                        <div class="form-text">
+                            Describe the task you want Microboss to solve. Be as specific as possible.
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="depth" class="form-label">
+                                    Depth
+                                    <i class="fas fa-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Depth of task decomposition. Higher values decompose complex tasks into more subtasks."></i>
+                                </label>
+                                <input type="number" class="form-control" id="depth" name="depth" min="1" max="5" value="1">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="max_retries" class="form-label">
+                                    Max Retries
+                                    <i class="fas fa-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Maximum number of retries when code execution fails."></i>
+                                </label>
+                                <input type="number" class="form-control" id="max_retries" name="max_retries" min="0" max="10" value="3">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="max_decomposition_depth" class="form-label">
+                                    Max Decomposition Depth
+                                    <i class="fas fa-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Maximum levels of subtask decomposition in the dependency graph."></i>
+                                </label>
+                                <input type="number" class="form-control" id="max_decomposition_depth" name="max_decomposition_depth" min="1" max="20" value="10">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Create and Run
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Start task buttons
+        document.querySelectorAll('.start-task').forEach(button => {
+            button.addEventListener('click', () => {
+                const taskId = button.getAttribute('data-task-id');
+                fetch(`/api/tasks/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    window.location.href = `/tasks/${taskId}`;
+                })
+                .catch(error => {
+                    console.error('Error starting task:', error);
+                    alert('Error starting task');
+                });
+            });
+        });
+
+        // Pre-fill task from URL query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskParam = urlParams.get('task');
+        if (taskParam) {
+            const taskDescription = document.getElementById('task_description');
+            taskDescription.value = taskParam;
+            
+            // Show the modal
+            const newTaskModal = new bootstrap.Modal(document.getElementById('newTaskModal'));
+            newTaskModal.show();
+        }
+    });
+</script>
+{% endblock %} 

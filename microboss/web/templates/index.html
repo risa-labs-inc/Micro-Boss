@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Microboss - AI Agent System{% endblock %}
+
+{% block content %}
+<div class="px-4 py-5 my-5 text-center">
+    <i class="fas fa-brain fa-4x text-primary mb-4"></i>
+    <h1 class="display-5 fw-bold text-body-emphasis">Microboss</h1>
+    <div class="col-lg-8 mx-auto">
+        <p class="lead mb-4">
+            An AI agent system that decomposes complex tasks into simpler subproblems and generates code to solve them.
+        </p>
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-5">
+            <a href="{{ url_for('tasks') }}" class="btn btn-primary btn-lg px-4 gap-3">
+                <i class="fas fa-play me-2"></i>Create New Task
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">AI-Powered Decomposition</h5>
+                <p class="card-text">Breaks down complex tasks into simpler subtasks using advanced AI techniques.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-code fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Automatic Code Generation</h5>
+                <p class="card-text">Generates executable Python code to solve the identified tasks.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-network fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Dependency Management</h5>
+                <p class="card-text">Handles dependencies between subtasks with a sophisticated execution pipeline.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-lg-6">
+        <h2>Getting Started</h2>
+        <p>Create a new task by clicking the button above, or select from the following common tasks:</p>
+        <div class="list-group mb-4">
+            <button class="list-group-item list-group-item-action common-task" data-task="Calculate the factorial of 10">
+                <i class="fas fa-calculator me-2"></i>Calculate the factorial of 10
+            </button>
+            <button class="list-group-item list-group-item-action common-task" data-task="Generate a Fibonacci sequence up to the 20th number">
+                <i class="fas fa-sort-numeric-up me-2"></i>Generate a Fibonacci sequence
+            </button>
+            <button class="list-group-item list-group-item-action common-task" data-task="Implement a simple weather forecasting system based on historical data">
+                <i class="fas fa-cloud-sun me-2"></i>Implement a weather forecasting system
+            </button>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <h2>How It Works</h2>
+        <div class="accordion" id="howItWorksAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        Task Decomposition
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#howItWorksAccordion">
+                    <div class="accordion-body">
+                        <p>For complex tasks, Microboss breaks them down into simpler subtasks with dependencies.</p>
+                        <p>Each subtask is manageable and can be solved independently before combining the results.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        Code Generation
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#howItWorksAccordion">
+                    <div class="accordion-body">
+                        <p>Microboss uses Claude AI to generate executable Python code for each task or subtask.</p>
+                        <p>The generated code is saved to files and executed in controlled environments.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                        Result Aggregation
+                    </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#howItWorksAccordion">
+                    <div class="accordion-body">
+                        <p>After executing all subtasks, Microboss combines the results according to the task dependencies.</p>
+                        <p>The final result is returned and all intermediate files are saved for inspection.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Handle common task selection
+        document.querySelectorAll('.common-task').forEach(button => {
+            button.addEventListener('click', () => {
+                const task = button.getAttribute('data-task');
+                window.location.href = `{{ url_for('tasks') }}?task=${encodeURIComponent(task)}`;
+            });
+        });
+    });
+</script>
+{% endblock %} 

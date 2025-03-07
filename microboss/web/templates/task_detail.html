@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+
+{% block title %}Task: {{ task.description | truncate(30) }} - Microboss{% endblock %}
+
+{% block head %}
+<style>
+    #dependency-graph {
+        width: 100%;
+        height: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('tasks') }}">Tasks</a></li>
+                <li class="breadcrumb-item active">{{ task.task_id }}</li>
+            </ol>
+        </nav>
+        <h1 class="mb-3">{{ task.description }}</h1>
+        <div class="mb-3">
+            <span class="text-muted me-3">ID: {{ task.task_id }}</span>
+            {% if task.status.value == 'pending' %}
+            <span class="badge bg-secondary">Pending</span>
+            {% elif task.status.value == 'running' %}
+            <span class="badge bg-primary">Running</span>
+            {% elif task.status.value == 'completed' %}
+            <span class="badge bg-success">Completed</span>
+            {% elif task.status.value == 'failed' %}
+            <span class="badge bg-danger">Failed</span>
+            {% endif %}
+        </div>
+    </div>
+    <div>
+        {% if task.status.value == 'pending' %}
+        <button class="btn btn-success start-task" data-task-id="{{ task.task_id }}">
+            <i class="fas fa-play me-2"></i>Start Task
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Task Info</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Depth
+                        <span class="badge bg-primary rounded-pill">{{ task.depth }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Max Retries
+                        <span class="badge bg-primary rounded-pill">{{ task.max_retries }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        AI Model
+                        <span class="badge bg-info text-dark">{{ task.model_info if task.model_info else "Not specified" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Created
+                        <span>{{ task.created_at | int | datetime }}</span>
+                    </li>
+                    {% if task.started_at %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Started
+                        <span>{{ task.started_at | int | datetime }}</span>
+                    </li>
+                    {% endif %}
+                    {% if task.completed_at %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Completed
+                        <span>{{ task.completed_at | int | datetime }}</span>
+                    </li>
+                    {% endif %}
+                    {% if task.completed_at and task.started_at %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Duration
+                        <span>{{ (task.completed_at - task.started_at) | int | duration }}</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-9">
+        <ul class="nav nav-tabs" id="taskTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" aria-controls="logs" aria-selected="true">
+                    <i class="fas fa-terminal me-2"></i>Logs
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="visualization-tab" data-bs-toggle="tab" data-bs-target="#visualization" type="button" role="tab" aria-controls="visualization" aria-selected="false">
+                    <i class="fas fa-project-diagram me-2"></i>Visualization
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="code-tab" data-bs-toggle="tab" data-bs-target="#code" type="button" role="tab" aria-controls="code" aria-selected="false">
+                    <i class="fas fa-code me-2"></i>Code
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="result-tab" data-bs-toggle="tab" data-bs-target="#result" type="button" role="tab" aria-controls="result" aria-selected="false">
+                    <i class="fas fa-check-circle me-2"></i>Result
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content" id="taskTabsContent">
+            <div class="tab-pane fade show active" id="logs" role="tabpanel" aria-labelledby="logs-tab">
+                <div class="log-console" id="log-console">
+                    <div class="text-center text-muted py-5" id="log-empty-message">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <div>Waiting for task execution logs...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="visualization" role="tabpanel" aria-labelledby="visualization-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Task Execution Timeline</h5>
+                        <div class="visualization-container">
+                            <div class="timeline-view" id="task-timeline">
+                                <div class="text-muted text-center py-3" id="no-timeline-message">
+                                    <i class="fas fa-project-diagram fa-2x mb-2"></i>
+                                    <div>Task execution timeline will appear here once the task starts running.</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Task Decomposition Graph (original visualization) -->
+                            <div class="mt-4">
+                                <h5 class="card-subtitle mb-3">Task Decomposition Graph</h5>
+                                <div id="dependency-graph"></div>
+                                <div class="text-muted text-center py-3" id="no-graph-message">
+                                    <i class="fas fa-project-diagram fa-2x mb-2"></i>
+                                    <div>Dependency graph will appear here once task is decomposed.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="code" role="tabpanel" aria-labelledby="code-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Generated Code</h5>
+                        <div id="code-blocks">
+                            <div class="text-muted text-center py-5" id="no-code-message">
+                                <i class="fas fa-code fa-2x mb-2"></i>
+                                <div>Code will appear here once generated.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="result" role="tabpanel" aria-labelledby="result-tab">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Task Result</h5>
+                        {% if task.result %}
+                        <div class="p-3 bg-light rounded">
+                            <h6 class="mb-3"><i class="fas fa-check-circle text-success me-2"></i>Task Completed Successfully</h6>
+                            
+                            {% if "factorial" in task.description|lower and "factorial of 10 is" in task.result|lower %}
+                            <div class="alert alert-success">
+                                <h4 class="alert-heading mb-2">Factorial Calculation Result</h4>
+                                <p class="mb-0">{{ task.result }}</p>
+                            </div>
+                            {% else %}
+                            <div class="mb-2"><strong>Result:</strong></div>
+                            <pre class="mb-0"><code id="result-content">{{ task.result }}</code></pre>
+                            {% endif %}
+                        </div>
+                        {% elif task.error %}
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Task Failed</h6>
+                            <pre class="mb-0"><code>{{ task.error }}</code></pre>
+                        </div>
+                        {% else %}
+                        <div class="text-muted text-center py-5" id="no-result-message">
+                            <i class="fas fa-hourglass-half fa-2x mb-2"></i>
+                            <div>Results will appear here once task is completed.</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Socket.IO for real-time updates -->
+<script src="https://cdn.jsdelivr.net/npm/socket.io@4.6.1/client-dist/socket.io.min.js"></script>
+<!-- Plotly for visualizations -->
+<script src="https://cdn.plot.ly/plotly-2.20.0.min.js"></script>
+<!-- Highlight.js for code highlighting -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const taskId = "{{ task.task_id }}";
+        const logConsole = document.getElementById('log-console');
+        const logEmptyMessage = document.getElementById('log-empty-message');
+        const noGraphMessage = document.getElementById('no-graph-message');
+        const noTimelineMessage = document.getElementById('no-timeline-message');
+        const noCodeMessage = document.getElementById('no-code-message');
+        const noResultMessage = document.getElementById('no-result-message');
+        const codeBlocks = document.getElementById('code-blocks');
+        const dependencyGraph = document.getElementById('dependency-graph');
+        const taskTimeline = document.getElementById('task-timeline');
+        
+        let isFirstLog = true;
+        let eventsProcessed = 0; // Track how many events we've processed
+        
+        // Socket.IO connection
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        // Timeline event handler
+        function addTimelineEvent(event) {
+            console.log('Adding timeline event:', event.level, event.message); // Debug
+            
+            if (noTimelineMessage && noTimelineMessage.style.display !== 'none') {
+                noTimelineMessage.style.display = 'none';
+            }
+            
+            // Create timeline item
+            const timelineItem = document.createElement('div');
+            timelineItem.classList.add('timeline-item');
+            
+            // Create timeline point and time
+            const timelinePoint = document.createElement('div');
+            timelinePoint.classList.add('timeline-point');
+            
+            // Set color based on event level
+            if (event.level === 'error') {
+                timelinePoint.classList.add('bg-danger');
+            } else if (event.level === 'success') {
+                timelinePoint.classList.add('bg-success');
+            } else if (event.level === 'warning') {
+                timelinePoint.classList.add('bg-warning');
+            } else if (event.level === 'code') {
+                timelinePoint.classList.add('bg-info');
+            } else if (event.level === 'result') {
+                timelinePoint.classList.add('bg-primary');
+            }
+            
+            const timelineTime = document.createElement('div');
+            timelineTime.classList.add('timeline-time');
+            timelineTime.textContent = event.formatted_time;
+            
+            // Create timeline content
+            const timelineContent = document.createElement('div');
+            timelineContent.classList.add('timeline-content');
+            
+            // Create content based on event type
+            let icon = 'fa-info-circle';
+            let bgColor = '';
+            
+            if (event.level === 'error') {
+                icon = 'fa-exclamation-circle';
+                bgColor = 'border-danger';
+            } else if (event.level === 'success') {
+                icon = 'fa-check-circle';
+                bgColor = 'border-success';
+            } else if (event.level === 'warning') {
+                icon = 'fa-exclamation-triangle';
+                bgColor = 'border-warning';
+            } else if (event.level === 'code') {
+                icon = 'fa-code';
+                bgColor = 'border-info';
+            } else if (event.level === 'result') {
+                icon = 'fa-clipboard-check';
+                bgColor = 'border-primary';
+            }
+            
+            timelineContent.classList.add(bgColor);
+            
+            const contentHeader = document.createElement('div');
+            contentHeader.classList.add('d-flex', 'justify-content-between', 'align-items-center');
+            
+            const contentTitle = document.createElement('h6');
+            contentTitle.classList.add('mb-0');
+            contentTitle.innerHTML = `<i class="fas ${icon} me-2"></i> ${event.message}`;
+            
+            contentHeader.appendChild(contentTitle);
+            timelineContent.appendChild(contentHeader);
+            
+            // Add additional data if available
+            if (event.level === 'code' && event.data && event.data.code) {
+                const codePreview = document.createElement('div');
+                codePreview.classList.add('code-preview', 'mt-2');
+                
+                const codeSnippet = document.createElement('pre');
+                codeSnippet.classList.add('code-snippet', 'mb-0');
+                codeSnippet.style.maxHeight = '100px';
+                codeSnippet.style.overflow = 'hidden';
+                
+                const code = document.createElement('code');
+                code.classList.add('language-python');
+                
+                // Truncate code for preview
+                const truncatedCode = event.data.code.split('\n').slice(0, 5).join('\n');
+                code.textContent = truncatedCode + (event.data.code.split('\n').length > 5 ? '\n...' : '');
+                
+                codeSnippet.appendChild(code);
+                codePreview.appendChild(codeSnippet);
+                timelineContent.appendChild(codePreview);
+                
+                // Add "View Full Code" button
+                const viewCodeBtn = document.createElement('button');
+                viewCodeBtn.classList.add('btn', 'btn-sm', 'btn-outline-secondary', 'mt-2');
+                viewCodeBtn.innerHTML = '<i class="fas fa-code me-2"></i>View Full Code';
+                viewCodeBtn.addEventListener('click', () => {
+                    document.getElementById('code-tab').click();
+                });
+                
+                timelineContent.appendChild(viewCodeBtn);
+            }
+            
+            // Add result data if available
+            if (event.level === 'result' && event.data && event.data.result) {
+                const resultPreview = document.createElement('div');
+                resultPreview.classList.add('result-preview', 'mt-2');
+                
+                const resultContent = document.createElement('div');
+                resultContent.classList.add('alert', 'alert-light', 'p-2', 'mb-0');
+                resultContent.textContent = String(event.data.result).substring(0, 100) + 
+                    (String(event.data.result).length > 100 ? '...' : '');
+                
+                resultPreview.appendChild(resultContent);
+                timelineContent.appendChild(resultPreview);
+                
+                // Add "View Result" button
+                const viewResultBtn = document.createElement('button');
+                viewResultBtn.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'mt-2');
+                viewResultBtn.innerHTML = '<i class="fas fa-clipboard-check me-2"></i>View Result';
+                viewResultBtn.addEventListener('click', () => {
+                    document.getElementById('result-tab').click();
+                });
+                
+                timelineContent.appendChild(viewResultBtn);
+            }
+            
+            // Assemble timeline item
+            timelineItem.appendChild(timelinePoint);
+            timelineItem.appendChild(timelineTime);
+            timelineItem.appendChild(timelineContent);
+            
+            // Add to timeline
+            if (!taskTimeline.classList.contains('timeline')) {
+                taskTimeline.classList.add('timeline');
+            }
+            
+            taskTimeline.appendChild(timelineItem);
+        }
+        
+        socket.on('log_event', (event) => {
+            if (event.task_id === taskId) {
+                if (isFirstLog) {
+                    logEmptyMessage.style.display = 'none';
+                    isFirstLog = false;
+                }
+                
+                // Create log entry
+                const logEntry = document.createElement('div');
+                logEntry.classList.add('log-entry', `log-${event.level}`);
+                
+                // Create timestamp
+                const timestamp = document.createElement('span');
+                timestamp.classList.add('timestamp');
+                timestamp.textContent = event.formatted_time;
+                
+                // Create message
+                const message = document.createElement('span');
+                message.textContent = event.message;
+                
+                // Append to log entry
+                logEntry.appendChild(timestamp);
+                logEntry.appendChild(message);
+                logConsole.appendChild(logEntry);
+                
+                // Scroll to bottom
+                logConsole.scrollTop = logConsole.scrollHeight;
+                
+                // Add event to timeline visualization
+                addTimelineEvent(event);
+                
+                // If it's a code log, add to code blocks
+                if (event.level === 'code' && event.data && event.data.code) {
+                    noCodeMessage.style.display = 'none';
+                    
+                    const codeCard = document.createElement('div');
+                    codeCard.classList.add('card', 'mb-3');
+                    
+                    const cardBody = document.createElement('div');
+                    cardBody.classList.add('card-body');
+                    
+                    const cardTitle = document.createElement('h6');
+                    cardTitle.classList.add('card-title');
+                    cardTitle.textContent = event.message;
+                    
+                    const pre = document.createElement('pre');
+                    pre.classList.add('mb-0');
+                    
+                    const code = document.createElement('code');
+                    code.classList.add('language-python');
+                    code.textContent = event.data.code;
+                    
+                    pre.appendChild(code);
+                    cardBody.appendChild(cardTitle);
+                    cardBody.appendChild(pre);
+                    codeCard.appendChild(cardBody);
+                    codeBlocks.appendChild(codeCard);
+                    
+                    // Highlight code
+                    hljs.highlightElement(code);
+                }
+                
+                // If it's a result log, update the result tab
+                if (event.level === 'result' && event.data) {
+                    if (noResultMessage) {
+                        noResultMessage.style.display = 'none';
+                    }
+                    
+                    // Find result section
+                    const resultContainer = document.querySelector('.tab-pane#result .card-body');
+                    if (resultContainer) {
+                        // Clear any existing "no result" message
+                        const noResultMsg = resultContainer.querySelector('#no-result-message');
+                        if (noResultMsg) {
+                            noResultMsg.style.display = 'none';
+                        }
+                        
+                        // Create success container if it doesn't exist
+                        let successContainer = resultContainer.querySelector('.p-3.bg-light.rounded');
+                        if (!successContainer) {
+                            successContainer = document.createElement('div');
+                            successContainer.className = 'p-3 bg-light rounded';
+                            
+                            // Add success header
+                            const header = document.createElement('h6');
+                            header.className = 'mb-3';
+                            header.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Task Completed Successfully';
+                            successContainer.appendChild(header);
+                            
+                            resultContainer.appendChild(successContainer);
+                        }
+                        
+                        let resultContent = null;
+                        
+                        // Check if it's a factorial result
+                        const resultData = event.data.result || '';
+                        if (typeof resultData === 'string' && 
+                            (resultData.toLowerCase().includes('factorial of 10 is') || 
+                             resultData.includes('3,628,800'))) {
+                            
+                            // Create special factorial display
+                            let factorialDiv = successContainer.querySelector('.alert.alert-success');
+                            if (!factorialDiv) {
+                                // Remove regular result display if exists
+                                const oldContent = successContainer.querySelector('#result-content');
+                                if (oldContent && oldContent.parentNode && oldContent.parentNode.parentNode) {
+                                    successContainer.removeChild(oldContent.parentNode.parentNode);
+                                }
+                                
+                                factorialDiv = document.createElement('div');
+                                factorialDiv.className = 'alert alert-success';
+                                
+                                const factorialHeader = document.createElement('h4');
+                                factorialHeader.className = 'alert-heading mb-2';
+                                factorialHeader.textContent = 'Factorial Calculation Result';
+                                
+                                const factorialResult = document.createElement('p');
+                                factorialResult.className = 'mb-0';
+                                factorialResult.id = 'result-content';
+                                
+                                factorialDiv.appendChild(factorialHeader);
+                                factorialDiv.appendChild(factorialResult);
+                                successContainer.appendChild(factorialDiv);
+                            }
+                            
+                            // Update the factorial result
+                            resultContent = factorialDiv.querySelector('p');
+                            if (resultContent) {
+                                resultContent.textContent = resultData;
+                            }
+                        } else {
+                            // Regular result display
+                            let regularResultDiv = successContainer.querySelector('div:not(.alert)');
+                            if (!regularResultDiv) {
+                                // Create regular result container
+                                regularResultDiv = document.createElement('div');
+                                regularResultDiv.className = 'mb-2';
+                                regularResultDiv.innerHTML = '<strong>Result:</strong>';
+                                
+                                const pre = document.createElement('pre');
+                                pre.className = 'mb-0';
+                                
+                                const code = document.createElement('code');
+                                code.id = 'result-content';
+                                
+                                pre.appendChild(code);
+                                successContainer.appendChild(regularResultDiv);
+                                successContainer.appendChild(pre);
+                            }
+                            
+                            // Update the regular result
+                            resultContent = successContainer.querySelector('#result-content');
+                            if (resultContent) {
+                                resultContent.textContent = resultData;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        socket.on('task_event', (data) => {
+            if (data.task && data.task.task_id === taskId) {
+                // Update task status
+                const statusBadges = document.querySelectorAll('.badge');
+                statusBadges.forEach(badge => {
+                    badge.classList.remove('bg-secondary', 'bg-primary', 'bg-success', 'bg-danger');
+                    if (data.task.status === 'pending') {
+                        badge.classList.add('bg-secondary');
+                        badge.textContent = 'Pending';
+                    } else if (data.task.status === 'running') {
+                        badge.classList.add('bg-primary');
+                        badge.textContent = 'Running';
+                    } else if (data.task.status === 'completed') {
+                        badge.classList.add('bg-success');
+                        badge.textContent = 'Completed';
+                    } else if (data.task.status === 'failed') {
+                        badge.classList.add('bg-danger');
+                        badge.textContent = 'Failed';
+                    }
+                });
+                
+                // If task is completed, reload the page to get full data
+                if (data.event_type === 'task_completed' || data.event_type === 'task_failed') {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            }
+        });
+        
+        // Start task button
+        const startTaskButton = document.querySelector('.start-task');
+        if (startTaskButton) {
+            startTaskButton.addEventListener('click', () => {
+                fetch(`/api/tasks/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Update UI
+                    startTaskButton.disabled = true;
+                    startTaskButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Task Started';
+                })
+                .catch(error => {
+                    console.error('Error starting task:', error);
+                    alert('Error starting task');
+                });
+            });
+        }
+        
+        // Load existing logs
+        fetch(`/api/tasks/${taskId}/events`)
+            .then(response => response.json())
+            .then(events => {
+                console.log('Loaded events:', events.length); // Debug
+                
+                if (events && events.length > 0) {
+                    logEmptyMessage.style.display = 'none';
+                    isFirstLog = false;
+                    
+                    // Clear no timeline message
+                    if (noTimelineMessage) {
+                        noTimelineMessage.style.display = 'none';
+                    }
+                    
+                    // Enable this to create a clean timeline
+                    // if (taskTimeline) {
+                    //    taskTimeline.innerHTML = '';
+                    //    taskTimeline.classList.add('timeline');
+                    // }
+                    
+                    events.forEach(event => {
+                        eventsProcessed++;
+                        
+                        // Create log entry
+                        const logEntry = document.createElement('div');
+                        logEntry.classList.add('log-entry', `log-${event.level}`);
+                        
+                        // Create timestamp
+                        const timestamp = document.createElement('span');
+                        timestamp.classList.add('timestamp');
+                        timestamp.textContent = event.formatted_time;
+                        
+                        // Create message
+                        const message = document.createElement('span');
+                        message.textContent = event.message;
+                        
+                        // Append to log entry
+                        logEntry.appendChild(timestamp);
+                        logEntry.appendChild(message);
+                        logConsole.appendChild(logEntry);
+                        
+                        // Add event to timeline visualization - critical for rebuilding timeline
+                        try {
+                            addTimelineEvent(event);
+                        } catch (err) {
+                            console.error('Error adding timeline event:', err);
+                        }
+                        
+                        // If it's a code log, add to code blocks
+                        if (event.level === 'code' && event.data && event.data.code) {
+                            noCodeMessage.style.display = 'none';
+                            
+                            const codeCard = document.createElement('div');
+                            codeCard.classList.add('card', 'mb-3');
+                            
+                            const cardBody = document.createElement('div');
+                            cardBody.classList.add('card-body');
+                            
+                            const cardTitle = document.createElement('h6');
+                            cardTitle.classList.add('card-title');
+                            cardTitle.textContent = event.message;
+                            
+                            const pre = document.createElement('pre');
+                            pre.classList.add('mb-0');
+                            
+                            const code = document.createElement('code');
+                            code.classList.add('language-python');
+                            code.textContent = event.data.code;
+                            
+                            pre.appendChild(code);
+                            cardBody.appendChild(cardTitle);
+                            cardBody.appendChild(pre);
+                            codeCard.appendChild(cardBody);
+                            codeBlocks.appendChild(codeCard);
+                            
+                            // Highlight code
+                            hljs.highlightElement(code);
+                        }
+                    });
+                    
+                    // Scroll to bottom
+                    logConsole.scrollTop = logConsole.scrollHeight;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading task events:', error);
+            });
+    });
+</script>
+{% endblock %} 
