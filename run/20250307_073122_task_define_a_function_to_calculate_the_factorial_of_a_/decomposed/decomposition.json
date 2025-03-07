@@ -1,0 +1,35 @@
+{
+  "subproblems": [
+    [
+      "task_1",
+      "Define a function signature for calculating the factorial of a given number",
+      []
+    ],
+    [
+      "task_2",
+      "Implement the logic inside the function to calculate the factorial of the given number",
+      [
+        "task_1"
+      ]
+    ]
+  ],
+  "levels": [
+    [
+      [
+        "task_1",
+        "Define a function signature for calculating the factorial of a given number",
+        []
+      ]
+    ],
+    [
+      [
+        "task_2",
+        "Implement the logic inside the function to calculate the factorial of the given number",
+        [
+          "task_1"
+        ]
+      ]
+    ]
+  ],
+  "aggregation_code": "results.get('task_2', None)"
+}

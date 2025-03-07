@@ -405,6 +405,8 @@
 <script src="https://cdn.plot.ly/plotly-2.20.0.min.js"></script>
 <!-- Highlight.js for code highlighting -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+<!-- Main Application Script -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // DOM elements
@@ -415,7 +417,7 @@
         const dependencyGraph = document.getElementById('dependency-graph');
         const noGraphMessage = document.getElementById('no-graph-message');
         const noCodeMessage = document.getElementById('no-code-message');
-        const codeContainer = document.getElementById('code-container');
+        const codeContainer = document.getElementById('code-blocks');
         const resultContainer = document.getElementById('result-container');
         const noResultMessage = document.getElementById('no-result-message');
         
@@ -437,11 +439,6 @@
             logEmptyMessage.style.display = 'none';
         }
         {% endif %}
-        
-        // Initialize dependency graph
-        function initializeDependencyGraph() {
-            // Implementation remains the same
-        }
         
         // Auto-refresh mechanism - check for new logs every 3 seconds
         function setupAutoRefresh() {
@@ -728,6 +725,30 @@
         function addTimelineEvent(event) {
             console.log('Adding timeline event:', event.level, event.message); // Debug
             
+            // Validate the event object
+            if (!event || typeof event !== 'object') {
+                console.error('Invalid event object:', event);
+                return;
+            }
+            
+            // Ensure all required fields exist
+            if (!event.level || !event.message) {
+                console.error('Event missing required fields (level or message):', event);
+                return;
+            }
+            
+            // Make sure timestamp is valid
+            if (!event.timestamp || isNaN(event.timestamp)) {
+                console.log('Setting default timestamp for event');
+                event.timestamp = Math.floor(Date.now() / 1000);
+            }
+            
+            // Ensure taskTimeline element exists
+            if (!taskTimeline) {
+                console.error('Timeline container element not found!');
+                return;
+            }
+            
             if (noTimelineMessage && noTimelineMessage.style.display !== 'none') {
                 noTimelineMessage.style.display = 'none';
             }
@@ -755,7 +776,14 @@
             
             const timelineTime = document.createElement('div');
             timelineTime.classList.add('timeline-time');
-            timelineTime.textContent = event.formatted_time || new Date(event.timestamp * 1000).toLocaleTimeString();
+            
+            // Safely format the time
+            try {
+                timelineTime.textContent = event.formatted_time || new Date(event.timestamp * 1000).toLocaleTimeString();
+            } catch (timeError) {
+                console.error('Error formatting time:', timeError);
+                timelineTime.textContent = new Date().toLocaleTimeString();
+            }
             
             // Create timeline content
             const timelineContent = document.createElement('div');
@@ -789,65 +817,94 @@
             
             const contentTitle = document.createElement('h6');
             contentTitle.classList.add('mb-0');
-            contentTitle.innerHTML = `<i class="fas ${icon} me-2"></i> ${event.message}`;
+            
+            // Safely set the HTML content
+            try {
+                // Sanitize the message to prevent XSS
+                const sanitizedMessage = event.message
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                contentTitle.innerHTML = `<i class="fas ${icon} me-2"></i> ${sanitizedMessage}`;
+            } catch (htmlError) {
+                console.error('Error setting HTML content:', htmlError);
+                contentTitle.textContent = event.message || 'Event';
+            }
             
             contentHeader.appendChild(contentTitle);
             timelineContent.appendChild(contentHeader);
             
             // Add additional data if available
             if (event.level === 'code' && event.data && event.data.code) {
-                const codePreview = document.createElement('div');
-                codePreview.classList.add('code-preview', 'mt-2');
-                
-                const codeSnippet = document.createElement('pre');
-                codeSnippet.classList.add('code-snippet', 'mb-0');
-                codeSnippet.style.maxHeight = '100px';
-                codeSnippet.style.overflow = 'hidden';
-                
-                const code = document.createElement('code');
-                code.classList.add('language-python');
-                
-                // Truncate code for preview
-                const truncatedCode = event.data.code.split('\n').slice(0, 5).join('\n');
-                code.textContent = truncatedCode + (event.data.code.split('\n').length > 5 ? '\n...' : '');
-                
-                codeSnippet.appendChild(code);
-                codePreview.appendChild(codeSnippet);
-                timelineContent.appendChild(codePreview);
-                
-                // Add "View Full Code" button
-                const viewCodeBtn = document.createElement('button');
-                viewCodeBtn.classList.add('btn', 'btn-sm', 'btn-outline-secondary', 'mt-2');
-                viewCodeBtn.innerHTML = '<i class="fas fa-code me-2"></i>View Full Code';
-                viewCodeBtn.addEventListener('click', () => {
-                    document.getElementById('code-tab').click();
-                });
-                
-                timelineContent.appendChild(viewCodeBtn);
+                try {
+                    const codePreview = document.createElement('div');
+                    codePreview.classList.add('code-preview', 'mt-2');
+                    
+                    const codeSnippet = document.createElement('pre');
+                    codeSnippet.classList.add('code-snippet', 'mb-0');
+                    codeSnippet.style.maxHeight = '100px';
+                    codeSnippet.style.overflow = 'hidden';
+                    
+                    const code = document.createElement('code');
+                    code.classList.add('language-python');
+                    
+                    // Truncate code for preview (safely)
+                    const codeText = String(event.data.code || '');
+                    const lines = codeText.split('\n');
+                    const truncatedCode = lines.slice(0, 5).join('\n');
+                    code.textContent = truncatedCode + (lines.length > 5 ? '\n...' : '');
+                    
+                    codeSnippet.appendChild(code);
+                    codePreview.appendChild(codeSnippet);
+                    timelineContent.appendChild(codePreview);
+                    
+                    // Add "View Full Code" button
+                    const viewCodeBtn = document.createElement('button');
+                    viewCodeBtn.classList.add('btn', 'btn-sm', 'btn-outline-secondary', 'mt-2');
+                    viewCodeBtn.innerHTML = '<i class="fas fa-code me-2"></i>View Full Code';
+                    viewCodeBtn.addEventListener('click', () => {
+                        const codeTab = document.getElementById('code-tab');
+                        if (codeTab) {
+                            codeTab.click();
+                        }
+                    });
+                    
+                    timelineContent.appendChild(viewCodeBtn);
+                } catch (codeError) {
+                    console.error('Error creating code preview:', codeError);
+                }
             }
             
             // Add result data if available
             if (event.level === 'result' && event.data && event.data.result) {
-                const resultPreview = document.createElement('div');
-                resultPreview.classList.add('result-preview', 'mt-2');
-                
-                const resultContent = document.createElement('div');
-                resultContent.classList.add('alert', 'alert-light', 'p-2', 'mb-0');
-                resultContent.textContent = String(event.data.result).substring(0, 100) + 
-                    (String(event.data.result).length > 100 ? '...' : '');
-                
-                resultPreview.appendChild(resultContent);
-                timelineContent.appendChild(resultPreview);
-                
-                // Add "View Result" button
-                const viewResultBtn = document.createElement('button');
-                viewResultBtn.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'mt-2');
-                viewResultBtn.innerHTML = '<i class="fas fa-clipboard-check me-2"></i>View Result';
-                viewResultBtn.addEventListener('click', () => {
-                    document.getElementById('result-tab').click();
-                });
-                
-                timelineContent.appendChild(viewResultBtn);
+                try {
+                    const resultPreview = document.createElement('div');
+                    resultPreview.classList.add('result-preview', 'mt-2');
+                    
+                    const resultContent = document.createElement('div');
+                    resultContent.classList.add('alert', 'alert-light', 'p-2', 'mb-0');
+                    
+                    // Safely add the result text
+                    const resultText = String(event.data.result || '');
+                    resultContent.textContent = resultText.substring(0, 100) + (resultText.length > 100 ? '...' : '');
+                    
+                    resultPreview.appendChild(resultContent);
+                    timelineContent.appendChild(resultPreview);
+                    
+                    // Add "View Result" button
+                    const viewResultBtn = document.createElement('button');
+                    viewResultBtn.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'mt-2');
+                    viewResultBtn.innerHTML = '<i class="fas fa-clipboard-check me-2"></i>View Result';
+                    viewResultBtn.addEventListener('click', () => {
+                        const resultTab = document.getElementById('result-tab');
+                        if (resultTab) {
+                            resultTab.click();
+                        }
+                    });
+                    
+                    timelineContent.appendChild(viewResultBtn);
+                } catch (resultError) {
+                    console.error('Error creating result preview:', resultError);
+                }
             }
             
             // Assemble timeline item
@@ -860,7 +917,12 @@
                 taskTimeline.classList.add('timeline');
             }
             
-            taskTimeline.appendChild(timelineItem);
+            try {
+                taskTimeline.appendChild(timelineItem);
+                console.log('Timeline event added successfully');
+            } catch (appendError) {
+                console.error('Error appending to timeline:', appendError);
+            }
         }
 
         // Debug function to test timeline
@@ -935,163 +997,259 @@
                 return false;
             }
         };
-    });
 
-    // Initialize dependency graph if data is available
-    {% if graph_data %}
-    if (dependencyGraph) {
-        console.log('Initializing dependency graph with data:', JSON.parse('{{ graph_data|tojson|safe }}'));
-        
-        // Hide the "no graph" message
-        if (noGraphMessage) {
-            noGraphMessage.style.display = 'none';
-        }
-        
-        // Initialize graph visualization with vis.js
-        try {
-            // Check if vis.js is loaded
-            if (typeof vis === 'undefined') {
-                console.error('vis.js library not loaded');
-                if (dependencyGraph) {
-                    dependencyGraph.innerHTML = '<div class="alert alert-danger">Error: vis.js library not found. Please check network connections.</div>';
+        // Add a function to test code display
+        window.testCodeDisplay = function(code) {
+            const codeEvent = {
+                level: 'code',
+                message: 'Test code event',
+                formatted_time: new Date().toLocaleTimeString(),
+                timestamp: Math.floor(Date.now() / 1000),
+                task_id: "{{ task.task_id }}",
+                data: {
+                    code: code || 'def hello_world():\n    print("Hello, world!")\n\nhello_world()'
                 }
-                return;
-            }
-            
-            // Check if graph data is valid
-            const graphData = JSON.parse('{{ graph_data|tojson|safe }}');
-            const nodes = graphData.nodes;
-            const edges = graphData.edges;
-            
-            if (!Array.isArray(nodes) || nodes.length === 0) {
-                console.error('Invalid or empty nodes array in graph data');
-                if (dependencyGraph) {
-                    dependencyGraph.innerHTML = '<div class="alert alert-warning">No nodes found in decomposition data.</div>';
-                }
-                return;
-            }
-            
-            console.log(`Graph data contains ${nodes.length} nodes and ${edges.length} edges`);
-            
-            // Configure dependency graph colors
-            const nodeColors = {
-                completed: '#28a745', // Green for completed tasks
-                pending: '#6c757d',   // Gray for pending tasks
-                running: '#007bff',   // Blue for running tasks
-                failed: '#dc3545'     // Red for failed tasks
             };
             
-            // Format nodes with proper colors and styles
-            const formattedNodes = nodes.map(node => {
-                console.log(`Processing node: ${node.id}, status: ${node.status}`);
-                return {
-                    id: node.id,
-                    label: node.label || node.id,
-                    title: node.description || node.id,
-                    color: {
-                        background: nodeColors[node.status] || '#6c757d',
-                        border: '#333333',
-                        highlight: { background: nodeColors[node.status] || '#6c757d', border: '#000000' }
-                    },
-                    font: { color: '#ffffff', size: 12 },
-                    shape: 'box',
-                    margin: 10,
-                    shadow: true
-                };
-            });
-            
-            // Setup graph in vis.js
             try {
-                const data = {
-                    nodes: new vis.DataSet(formattedNodes),
-                    edges: new vis.DataSet(edges)
-                };
-                
-                const options = {
-                    layout: {
-                        hierarchical: {
-                            direction: 'UD',
-                            sortMethod: 'directed',
-                            levelSeparation: 100,
-                            nodeSpacing: 150,
-                            edgeMinimization: true
-                        }
-                    },
-                    physics: {
-                        enabled: false
-                    },
-                    edges: {
-                        arrows: 'to',
-                        smooth: {
-                            type: 'cubicBezier',
-                            roundness: 0.5
-                        },
-                        color: '#666666',
-                        width: 1
-                    },
-                    interaction: {
-                        dragNodes: true,
-                        navigationButtons: true,
-                        keyboard: true,
-                        hover: true
-                    }
-                };
-                
-                // Create the network
-                const network = new vis.Network(dependencyGraph, data, options);
-                
-                // Add event listener for stabilization complete
-                network.on("stabilizationIterationsDone", function () {
-                    console.log("Graph stabilized");
-                    // Fit to the container once done
-                    network.fit();
-                });
-                
-                console.log('Dependency graph initialized successfully');
-            } catch (innerError) {
-                console.error('Error creating network:', innerError);
-                if (dependencyGraph) {
-                    dependencyGraph.innerHTML = `<div class="alert alert-danger">Error creating network: ${innerError.message}</div>`;
-                }
+                processCodeEvent(codeEvent);
+                console.log('Test code event processed');
+                return true;
+            } catch (err) {
+                console.error('Error processing test code event:', err);
+                return false;
             }
-        } catch (error) {
-            console.error('Error initializing dependency graph:', error);
-            // Show error in dependency graph container
-            if (dependencyGraph) {
-                dependencyGraph.innerHTML = `<div class="alert alert-danger">Error initializing graph: ${error.message}</div>`;
-            }
-        }
-    } else {
-        console.log('Dependency graph container not found in DOM');
-    }
-    {% else %}
-    if (dependencyGraph) {
-        console.log('No graph data available, using empty graph');
-        
-        // Create empty graph data
-        const emptyGraphData = {
-            nodes: [],
-            edges: []
         };
         
-        // Show the "no graph" message
-        if (noGraphMessage) {
-            noGraphMessage.style.display = 'block';
-        }
-    }
-    {% endif %}
+        // Add a function to test result display
+        window.testResultDisplay = function(result) {
+            const resultEvent = {
+                level: 'result',
+                message: 'Test result event',
+                formatted_time: new Date().toLocaleTimeString(),
+                timestamp: Math.floor(Date.now() / 1000),
+                task_id: "{{ task.task_id }}",
+                data: {
+                    result: result || 'Task completed successfully with result: 42'
+                }
+            };
+            
+            try {
+                processResultEvent(resultEvent);
+                console.log('Test result event processed');
+                return true;
+            } catch (err) {
+                console.error('Error processing test result event:', err);
+                return false;
+            }
+        };
+        
+        // Add a function to test the entire event pipeline
+        window.testTask = function() {
+            console.log('Running full task test...');
+            
+            // Add a code event
+            const testCode = 'def factorial(n):\n    if n == 0:\n        return 1\n    return n * factorial(n-1)\n\nresult = factorial(10)\nprint(f"The factorial of 10 is {result}")';
+            window.testCodeDisplay(testCode);
+            
+            // Add a result event
+            setTimeout(() => {
+                const testResult = 'The factorial of 10 is 3,628,800';
+                window.testResultDisplay(testResult);
+            }, 500);
+            
+            console.log('Test task complete. Check the Code and Result tabs.');
+            return true;
+        };
+        
+        // Initialize dependency graph if data is available
+        {% if graph_data %}
+        // Make sure the DOM is ready before accessing elements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the dependency graph elements
+            const dependencyGraph = document.getElementById('dependency-graph');
+            const noGraphMessage = document.getElementById('no-graph-message');
+            
+            if (dependencyGraph) {
+                console.log('Initializing dependency graph with data:', JSON.parse('{{ graph_data|tojson|safe }}'));
+                
+                // Hide the "no graph" message
+                if (noGraphMessage) {
+                    noGraphMessage.style.display = 'none';
+                }
+                
+                // Initialize graph visualization with vis.js
+                try {
+                    // Check if vis.js is loaded
+                    let canProceed = true;
+                    if (typeof vis === 'undefined') {
+                        console.error('vis.js library not loaded');
+                        if (dependencyGraph) {
+                            dependencyGraph.innerHTML = '<div class="alert alert-danger">Error: vis.js library not found. Please check network connections.</div>';
+                        }
+                        canProceed = false;
+                    }
+                    
+                    // Only proceed if vis.js is loaded
+                    if (canProceed) {
+                        // Check if graph data is valid
+                        const graphData = JSON.parse('{{ graph_data|tojson|safe }}');
+                        const nodes = graphData.nodes;
+                        const edges = graphData.edges;
+                        
+                        if (!Array.isArray(nodes) || nodes.length === 0) {
+                            console.error('Invalid or empty nodes array in graph data');
+                            if (dependencyGraph) {
+                                dependencyGraph.innerHTML = '<div class="alert alert-warning">No nodes found in decomposition data.</div>';
+                            }
+                        } else {
+                            console.log(`Graph data contains ${nodes.length} nodes and ${edges.length} edges`);
+                            
+                            // Configure dependency graph colors
+                            const nodeColors = {
+                                completed: '#28a745', // Green for completed tasks
+                                pending: '#6c757d',   // Gray for pending tasks
+                                running: '#007bff',   // Blue for running tasks
+                                failed: '#dc3545'     // Red for failed tasks
+                            };
+                            
+                            // Format nodes with proper colors and styles
+                            const formattedNodes = nodes.map(node => {
+                                console.log(`Processing node: ${node.id}, status: ${node.status}`);
+                                return {
+                                    id: node.id,
+                                    label: node.label || node.id,
+                                    title: node.description || node.id,
+                                    color: {
+                                        background: nodeColors[node.status] || '#6c757d',
+                                        border: '#333333',
+                                        highlight: { background: nodeColors[node.status] || '#6c757d', border: '#000000' }
+                                    },
+                                    font: { color: '#ffffff', size: 12 },
+                                    shape: 'box',
+                                    margin: 10,
+                                    shadow: true
+                                };
+                            });
+                            
+                            // Setup graph in vis.js
+                            try {
+                                const data = {
+                                    nodes: new vis.DataSet(formattedNodes),
+                                    edges: new vis.DataSet(edges)
+                                };
+                                
+                                const options = {
+                                    layout: {
+                                        hierarchical: {
+                                            direction: 'UD',
+                                            sortMethod: 'directed',
+                                            levelSeparation: 100,
+                                            nodeSpacing: 150,
+                                            edgeMinimization: true
+                                        }
+                                    },
+                                    physics: {
+                                        enabled: false
+                                    },
+                                    edges: {
+                                        arrows: 'to',
+                                        smooth: {
+                                            type: 'cubicBezier',
+                                            roundness: 0.5
+                                        },
+                                        color: '#666666',
+                                        width: 1
+                                    },
+                                    interaction: {
+                                        dragNodes: true,
+                                        navigationButtons: true,
+                                        keyboard: true,
+                                        hover: true
+                                    }
+                                };
+                                
+                                // Create the network
+                                const network = new vis.Network(dependencyGraph, data, options);
+                                
+                                // Add event listener for stabilization complete
+                                network.on("stabilizationIterationsDone", function () {
+                                    console.log("Graph stabilized");
+                                    // Fit to the container once done
+                                    network.fit();
+                                });
+                                
+                                console.log('Dependency graph initialized successfully');
+                            } catch (innerError) {
+                                console.error('Error creating network:', innerError);
+                                if (dependencyGraph) {
+                                    dependencyGraph.innerHTML = `<div class="alert alert-danger">Error creating network: ${innerError.message}</div>`;
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error initializing dependency graph:', error);
+                    // Show error in dependency graph container
+                    if (dependencyGraph) {
+                        dependencyGraph.innerHTML = `<div class="alert alert-danger">Error initializing graph: ${error.message}</div>`;
+                    }
+                }
+            } else {
+                console.log('Dependency graph container not found in DOM');
+            }
+        });
+        {% else %}
+        // Make sure the DOM is ready before accessing elements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the dependency graph elements
+            const dependencyGraph = document.getElementById('dependency-graph');
+            const noGraphMessage = document.getElementById('no-graph-message');
+            
+            if (dependencyGraph) {
+                console.log('No graph data available, using empty graph');
+                
+                // Create empty graph data
+                const emptyGraphData = {
+                    nodes: [],
+                    edges: []
+                };
+                
+                // Show the "no graph" message
+                if (noGraphMessage) {
+                    noGraphMessage.style.display = 'block';
+                }
+            }
+        });
+        {% endif %}
+    });
 
-    // Helper function to process code events
+    // Helper functions for processing events - defined in global scope
     function processCodeEvent(event) {
+        console.log('Processing code event:', event);
+        
         if (!event || !event.data || !event.data.code) {
             console.warn('Invalid code event:', event);
             return;
         }
         
+        // Find DOM elements
+        const noCodeMessage = document.getElementById('no-code-message');
+        const codeContainer = document.getElementById('code-blocks');
+        
+        console.log('Code container exists:', !!codeContainer, 'No code message exists:', !!noCodeMessage);
+        
+        if (!codeContainer) {
+            console.error('Code container element not found!');
+            return;
+        }
+        
+        // Hide the no code message
         if (noCodeMessage) {
             noCodeMessage.style.display = 'none';
         }
         
+        // Create card for code
         const codeCard = document.createElement('div');
         codeCard.classList.add('card', 'mb-3');
         
@@ -1100,7 +1258,7 @@
         
         const cardTitle = document.createElement('h6');
         cardTitle.classList.add('card-title');
-        cardTitle.textContent = event.message;
+        cardTitle.textContent = event.message || 'Generated Code';
         
         const pre = document.createElement('pre');
         pre.classList.add('mb-0');
@@ -1109,15 +1267,34 @@
         code.classList.add('language-python');
         code.textContent = event.data.code;
         
+        // Assemble the elements
         pre.appendChild(code);
         cardBody.appendChild(cardTitle);
         cardBody.appendChild(pre);
         codeCard.appendChild(cardBody);
+        
+        // Append to the container
+        console.log('Appending code card to container');
         codeContainer.appendChild(codeCard);
+        
+        // Make the code tab visible and active
+        const codeTab = document.getElementById('code-tab');
+        if (codeTab) {
+            // Flash the tab to draw attention
+            codeTab.classList.add('bg-light');
+            setTimeout(() => {
+                codeTab.classList.remove('bg-light');
+            }, 500);
+        }
         
         // Highlight code
         try {
-            hljs.highlightElement(code);
+            if (typeof hljs !== 'undefined') {
+                hljs.highlightElement(code);
+                console.log('Code highlighted successfully');
+            } else {
+                console.warn('highlight.js not loaded');
+            }
         } catch (e) {
             console.error('Error highlighting code:', e);
         }
@@ -1125,12 +1302,17 @@
 
     // Helper function to process result events
     function processResultEvent(event) {
+        console.log('Processing result event:', event);
+        
         if (!event || !event.data) {
             console.warn('Invalid result event:', event);
             return;
         }
         
-        console.log('Processing result event:', event);
+        // Find DOM elements
+        const noResultMessage = document.getElementById('no-result-message');
+        const resultTab = document.getElementById('result-tab');
+        console.log('Result message element exists:', !!noResultMessage, 'Result tab exists:', !!resultTab);
         
         if (noResultMessage) {
             noResultMessage.style.display = 'none';
@@ -1138,95 +1320,128 @@
         
         // Find result section
         const resultContainer = document.querySelector('.tab-pane#result .card-body');
-        if (resultContainer) {
-            // Clear any existing "no result" message
-            const noResultMsg = resultContainer.querySelector('#no-result-message');
-            if (noResultMsg) {
-                noResultMsg.style.display = 'none';
-            }
+        if (!resultContainer) {
+            console.error('Result container not found!');
+            return;
+        }
+        
+        // Clear any existing "no result" message
+        const noResultMsg = resultContainer.querySelector('#no-result-message');
+        if (noResultMsg) {
+            noResultMsg.style.display = 'none';
+        }
+        
+        // Create success container if it doesn't exist
+        let successContainer = resultContainer.querySelector('.p-3.bg-light.rounded');
+        if (!successContainer) {
+            successContainer = document.createElement('div');
+            successContainer.className = 'p-3 bg-light rounded';
             
-            // Create success container if it doesn't exist
-            let successContainer = resultContainer.querySelector('.p-3.bg-light.rounded');
-            if (!successContainer) {
-                successContainer = document.createElement('div');
-                successContainer.className = 'p-3 bg-light rounded';
-                
-                // Add success header
-                const header = document.createElement('h6');
-                header.className = 'mb-3';
-                header.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Task Completed Successfully';
-                successContainer.appendChild(header);
-                
-                resultContainer.appendChild(successContainer);
-            }
+            // Add success header
+            const header = document.createElement('h6');
+            header.className = 'mb-3';
+            header.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Task Completed Successfully';
+            successContainer.appendChild(header);
             
-            let resultContent = null;
+            resultContainer.appendChild(successContainer);
+        }
+        
+        // Make the result tab visible and active
+        if (resultTab) {
+            // Flash the tab to draw attention
+            resultTab.classList.add('bg-light');
+            setTimeout(() => {
+                resultTab.classList.remove('bg-light');
+            }, 500);
+        }
+        
+        let resultContent = null;
+        
+        // Check if it's a factorial result
+        const resultData = event.data.result || '';
+        if (typeof resultData === 'string' && (resultData.toLowerCase().includes('factorial of 10 is') || resultData.includes('3,628,800'))) {
             
-            // Check if it's a factorial result
-            const resultData = event.data.result || '';
-            if (typeof resultData === 'string' && (resultData.toLowerCase().includes('factorial of 10 is') || resultData.includes('3,628,800'))) {
-                
-                // Create special factorial display
-                let factorialDiv = successContainer.querySelector('.alert.alert-success');
-                if (!factorialDiv) {
-                    // Remove regular result display if exists
-                    const oldContent = successContainer.querySelector('#result-content');
-                    if (oldContent && oldContent.parentNode && oldContent.parentNode.parentNode) {
-                        try {
-                            successContainer.removeChild(oldContent.parentNode.parentNode);
-                        } catch (e) {
-                            console.error('Error removing old content:', e);
-                        }
+            // Create special factorial display
+            let factorialDiv = successContainer.querySelector('.alert.alert-success');
+            if (!factorialDiv) {
+                // Remove regular result display if exists
+                const oldContent = successContainer.querySelector('#result-content');
+                if (oldContent && oldContent.parentNode && oldContent.parentNode.parentNode) {
+                    try {
+                        successContainer.removeChild(oldContent.parentNode.parentNode);
+                    } catch (e) {
+                        console.error('Error removing old content:', e);
                     }
-                    
-                    factorialDiv = document.createElement('div');
-                    factorialDiv.className = 'alert alert-success';
-                    
-                    const factorialHeader = document.createElement('h4');
-                    factorialHeader.className = 'alert-heading mb-2';
-                    factorialHeader.textContent = 'Factorial Calculation Result';
-                    
-                    const factorialResult = document.createElement('p');
-                    factorialResult.className = 'mb-0';
-                    factorialResult.id = 'result-content';
-                    
-                    factorialDiv.appendChild(factorialHeader);
-                    factorialDiv.appendChild(factorialResult);
-                    successContainer.appendChild(factorialDiv);
                 }
                 
-                // Update the factorial result
-                resultContent = factorialDiv.querySelector('p');
-                if (resultContent) {
-                    resultContent.textContent = resultData;
-                }
+                factorialDiv = document.createElement('div');
+                factorialDiv.className = 'alert alert-success';
+                
+                const factorialHeader = document.createElement('h4');
+                factorialHeader.className = 'alert-heading mb-2';
+                factorialHeader.textContent = 'Factorial Calculation Result';
+                
+                const factorialResult = document.createElement('p');
+                factorialResult.className = 'mb-0';
+                factorialResult.textContent = resultData;
+                
+                factorialDiv.appendChild(factorialHeader);
+                factorialDiv.appendChild(factorialResult);
+                successContainer.appendChild(factorialDiv);
             } else {
-                // Regular result display
-                let regularResultDiv = successContainer.querySelector('div:not(.alert)');
-                if (!regularResultDiv) {
-                    // Create regular result container
-                    regularResultDiv = document.createElement('div');
-                    regularResultDiv.className = 'mb-2';
-                    regularResultDiv.innerHTML = '<strong>Result:</strong>';
-                    
-                    const pre = document.createElement('pre');
-                    pre.className = 'mb-0';
-                    
-                    const code = document.createElement('code');
-                    code.id = 'result-content';
-                    
-                    pre.appendChild(code);
-                    successContainer.appendChild(regularResultDiv);
-                    successContainer.appendChild(pre);
+                // Update existing factorial display
+                const resultPara = factorialDiv.querySelector('p');
+                if (resultPara) {
+                    resultPara.textContent = resultData;
                 }
+            }
+        } else {
+            // Regular result display
+            
+            // Remove factorial display if exists
+            const factorialDiv = successContainer.querySelector('.alert.alert-success');
+            if (factorialDiv) {
+                try {
+                    successContainer.removeChild(factorialDiv);
+                } catch (e) {
+                    console.error('Error removing factorial div:', e);
+                }
+            }
+            
+            // Check if regular result already exists
+            let resultLabel = successContainer.querySelector('div.mb-2 strong');
+            let resultPre = successContainer.querySelector('pre code#result-content');
+            
+            if (!resultLabel) {
+                // Create new result label
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'mb-2';
+                const label = document.createElement('strong');
+                label.textContent = 'Result:';
+                labelDiv.appendChild(label);
+                successContainer.appendChild(labelDiv);
                 
-                // Update the regular result
-                resultContent = successContainer.querySelector('#result-content');
-                if (resultContent) {
-                    resultContent.textContent = resultData;
-                }
+                // Create code pre
+                const pre = document.createElement('pre');
+                pre.className = 'mb-0';
+                
+                // Create code element
+                const code = document.createElement('code');
+                code.id = 'result-content';
+                code.textContent = resultData;
+                
+                pre.appendChild(code);
+                successContainer.appendChild(pre);
+                
+                console.log('Created new result display');
+            } else if (resultPre) {
+                // Update existing result
+                resultPre.textContent = resultData;
+                console.log('Updated existing result display');
             }
         }
+        
+        console.log('Result event processed successfully');
     }
 </script>
 {% endblock %} 
