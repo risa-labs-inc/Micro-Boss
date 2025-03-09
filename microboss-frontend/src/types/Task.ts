@@ -12,8 +12,11 @@ export enum EventLevel {
   SUCCESS = "success",
   WARNING = "warning",
   ERROR = "error",
+  DEBUG = "debug",
+  TASK = "task",
   CODE = "code",
-  RESULT = "result"
+  RESULT = "result",
+  EXECUTION = "execution"
 }
 
 // Event type
@@ -26,6 +29,9 @@ export interface Event {
   task_id: string;
   type: string;
   data?: any;
+  depth?: number;
+  subtask_id?: string;
+  parent_id?: string;
 }
 
 // Available models

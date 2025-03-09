@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import taskService from '@/services/TaskService';
+import WebSocketService from '@/services/WebSocketService';
 import { Task } from '@/services/TaskService';
 import { Event, TaskStatus } from '@/types/Task';
 import TaskStatusBadge from '@/components/TaskStatusBadge';
@@ -17,7 +18,6 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   const taskId = params.id as string;
 
@@ -45,31 +45,42 @@ export default function TaskDetailPage() {
 
     loadTaskAndEvents();
 
-    // Start polling for updates if task is running
-    const interval = setInterval(async () => {
-      const updatedTask = await taskService.getTask(taskId);
-      if (updatedTask) {
-        setTask(updatedTask);
-        
-        // If task is running, fetch latest events
-        if (updatedTask.status === TaskStatus.RUNNING) {
-          const eventsData = await taskService.getTaskEvents(taskId);
-          setEvents(eventsData);
-        } else {
-          // Task is no longer running, stop polling
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
-          }
-        }
+    // Subscribe to real-time task events via WebSocket
+    const unsubscribeTaskEvents = taskService.subscribeToTaskEvents(taskId, (data: any) => {
+      // Update task data when it changes
+      if (data.event_type && data.task) {
+        setTask(taskService.formatTaskDates(data.task));
       }
-    }, 5000);
+    });
 
-    setPollingInterval(interval);
+    // Subscribe to real-time log events via WebSocket
+    const unsubscribeLogEvents = taskService.subscribeToLogEvents((data: any) => {
+      // Only process events for this task
+      if (data.task_id === taskId) {
+        setEvents(prevEvents => {
+          // Check if we already have this event (avoid duplicates)
+          const eventExists = prevEvents.some(event => 
+            event.id === data.id || 
+            (event.timestamp === data.timestamp && event.message === data.message)
+          );
+          
+          if (!eventExists) {
+            // Add the new event and sort by timestamp
+            return [...prevEvents, data].sort((a, b) => a.timestamp - b.timestamp);
+          }
+          
+          return prevEvents;
+        });
+      }
+    });
 
-    // Clean up interval on unmount
+    // Initialize WebSocket connection
+    WebSocketService.connect();
+
+    // Clean up on unmount
     return () => {
-      if (interval) clearInterval(interval);
+      unsubscribeTaskEvents();
+      unsubscribeLogEvents();
     };
   }, [taskId, router]);
 
@@ -181,7 +192,14 @@ export default function TaskDetailPage() {
               </div>
               <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-gray-50">
                 <dt className="text-sm font-medium text-gray-900">Depth</dt>
-                <dd className="mt-1 text-sm font-medium text-gray-900 sm:mt-0 sm:col-span-2">{task.depth}</dd>
+                <dd className="mt-1 text-sm font-medium text-gray-900 sm:mt-0 sm:col-span-2">
+                  {task.depth}
+                  <span className="ml-2 text-gray-500">
+                    {task.depth > 1 ? 
+                      '(Task will be decomposed into subtasks)' : 
+                      '(Task will be solved directly)'}
+                  </span>
+                </dd>
               </div>
               <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 hover:bg-gray-50">
                 <dt className="text-sm font-medium text-gray-900">Max Retries</dt>
@@ -240,6 +258,7 @@ export default function TaskDetailPage() {
             <h3 className="text-lg leading-6 font-medium text-gray-900">Task Events</h3>
             <p className="mt-1 max-w-2xl text-sm text-gray-700">
               Event timeline for this task
+              {task.depth > 1 && <span className="ml-2 font-medium">(Hierarchical view with subtasks)</span>}
             </p>
           </div>
           <div className="border-t border-gray-200 px-4 py-5 sm:px-6">

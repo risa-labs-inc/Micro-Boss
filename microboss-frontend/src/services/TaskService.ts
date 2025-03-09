@@ -1,4 +1,6 @@
 import { TaskStatus } from '@/types/Task';
+import ApiService from './ApiService';
+import WebSocketService from './WebSocketService';
 
 // Define the Task interface
 export interface Task {
@@ -20,70 +22,130 @@ export interface Task {
   model_info?: string;
 }
 
-// Mock data to simulate tasks
+// Mock data to use as fallback when the backend is unavailable
 const mockTasks: Task[] = [
   {
-    task_id: '1',
+    task_id: 'mock-1',
     description: 'Calculate factorial of 10',
     depth: 1,
     max_retries: 3,
     max_decomposition_depth: 10,
-    created_at: Date.now() - 10000,
-    started_at: Date.now() - 9000,
-    completed_at: Date.now() - 2000,
+    created_at: Date.now() / 1000 - 10000,
+    started_at: Date.now() / 1000 - 9000,
+    completed_at: Date.now() / 1000 - 2000,
     status: TaskStatus.COMPLETED,
     result: '3628800',
     model_info: 'Anthropic Claude'
   },
   {
-    task_id: '2',
+    task_id: 'mock-2',
     description: 'Find prime numbers between 1 and 100',
     depth: 2,
     max_retries: 3,
     max_decomposition_depth: 10,
-    created_at: Date.now() - 30000,
-    started_at: Date.now() - 29000,
+    created_at: Date.now() / 1000 - 30000,
+    started_at: Date.now() / 1000 - 29000,
     status: TaskStatus.RUNNING,
-    model_info: 'OpenAI GPT-4'
-  },
-  {
-    task_id: '3',
-    description: 'Solve differential equation dy/dx = y^2 + x',
-    depth: 3,
-    max_retries: 3,
-    max_decomposition_depth: 10,
-    created_at: Date.now() - 50000,
-    status: TaskStatus.PENDING
-  },
-  {
-    task_id: '4',
-    description: 'Implement a basic neural network',
-    depth: 2,
-    max_retries: 2,
-    max_decomposition_depth: 8,
-    created_at: Date.now() - 100000,
-    started_at: Date.now() - 95000,
-    completed_at: Date.now() - 85000,
-    status: TaskStatus.FAILED,
-    error: 'Dependencies installation failed',
     model_info: 'OpenAI GPT-4'
   }
 ];
 
+// Mock events to use as fallback
+const mockEvents: Record<string, any[]> = {
+  'mock-1': [
+    {
+      id: 'e-1',
+      timestamp: Date.now() / 1000 - 10000,
+      formatted_time: new Date((Date.now() - 10000 * 1000)).toLocaleString(),
+      level: 'task',
+      message: 'Created task: Calculate factorial of 10',
+      task_id: 'mock-1',
+      type: 'task',
+      depth: 0
+    },
+    {
+      id: 'e-2',
+      timestamp: Date.now() / 1000 - 9000,
+      formatted_time: new Date((Date.now() - 9000 * 1000)).toLocaleString(),
+      level: 'code',
+      message: 'Generated code to solve the task',
+      task_id: 'mock-1',
+      type: 'code',
+      data: {
+        code: `def factorial(n):\n    """Calculate the factorial of a number."""\n    if n == 0 or n == 1:\n        return 1\n    else:\n        return n * factorial(n-1)\n\n# Calculate factorial of 10\nresult = factorial(10)\nprint(f"The factorial of 10 is {result}")`,
+        language: 'python'
+      },
+      depth: 0
+    },
+    {
+      id: 'e-3',
+      timestamp: Date.now() / 1000 - 2500,
+      formatted_time: new Date((Date.now() - 2500 * 1000)).toLocaleString(),
+      level: 'result',
+      message: 'Task result',
+      task_id: 'mock-1',
+      type: 'result',
+      data: {
+        result: '3628800'
+      },
+      depth: 0
+    }
+  ]
+};
+
 class TaskService {
-  private tasks: Task[] = [...mockTasks];
+  private useMockData = false;
+  private mockTasksData: Task[] = [...mockTasks];
+
+  constructor() {
+    // Check if the API is available on startup
+    this.checkApiAvailability();
+  }
+
+  // Check if the API is available
+  private async checkApiAvailability() {
+    try {
+      await ApiService.getTasks();
+      this.useMockData = false;
+      console.log('Using real API data');
+    } catch (error) {
+      this.useMockData = true;
+      console.warn('API unavailable, using mock data:', error);
+    }
+  }
 
   // Get all tasks
   async getTasks(): Promise<Task[]> {
-    // In a real application, this would be an API call
-    return Promise.resolve(this.tasks.map(task => this.formatTaskDates(task)));
+    try {
+      if (this.useMockData) {
+        return this.mockTasksData.map(task => this.formatTaskDates(task));
+      }
+      
+      const tasks = await ApiService.getTasks();
+      return tasks.map((task: any) => this.formatTaskDates(task));
+    } catch (error) {
+      console.error('Error fetching tasks, falling back to mock data:', error);
+      this.useMockData = true;
+      return this.mockTasksData.map(task => this.formatTaskDates(task));
+    }
   }
 
   // Get a specific task by ID
   async getTask(taskId: string): Promise<Task | undefined> {
-    // In a real application, this would be an API call
-    const task = this.tasks.find(t => t.task_id === taskId);
-    return Promise.resolve(task ? this.formatTaskDates(task) : undefined);
+    try {
+      if (this.useMockData) {
+        const task = this.mockTasksData.find(t => t.task_id === taskId);
+        return task ? this.formatTaskDates(task) : undefined;
+      }
+      
+      const task = await ApiService.getTask(taskId);
+      return this.formatTaskDates(task);
+    } catch (error) {
+      console.error(`Error fetching task ${taskId}, checking mock data:`, error);
+      this.useMockData = true;
+      const task = this.mockTasksData.find(t => t.task_id === taskId);
+      return task ? this.formatTaskDates(task) : undefined;
+    }
   }
 
   // Create a new task
@@ -94,252 +156,169 @@ class TaskService {
     max_decomposition_depth: number = 10,
     model?: string
   ): Promise<Task> {
-    // In a real application, this would be an API call
-    const task: Task = {
-      task_id: Math.random().toString(36).substring(2, 11),
-      description,
-      depth,
-      max_retries,
-      max_decomposition_depth,
-      created_at: Date.now(),
-      status: TaskStatus.PENDING,
-      model_info: model
-    };
-    
-    this.tasks.push(task);
-    return Promise.resolve(this.formatTaskDates(task));
+    try {
+      if (this.useMockData) {
+        const task: Task = {
+          task_id: `mock-${Math.random().toString(36).substring(2, 11)}`,
+          description,
+          depth,
+          max_retries,
+          max_decomposition_depth,
+          created_at: Date.now() / 1000,
+          status: TaskStatus.PENDING,
+          model_info: model
+        };
+        
+        this.mockTasksData.push(task);
+        return this.formatTaskDates(task);
+      }
+      
+      const taskData = {
+        description,
+        depth,
+        max_retries,
+        max_decomposition_depth,
+        model
+      };
+      
+      const task = await ApiService.createTask(taskData);
+      return this.formatTaskDates(task);
+    } catch (error) {
+      console.error('Error creating task, using mock task:', error);
+      this.useMockData = true;
+      
+      const task: Task = {
+        task_id: `mock-${Math.random().toString(36).substring(2, 11)}`,
+        description,
+        depth,
+        max_retries,
+        max_decomposition_depth,
+        created_at: Date.now() / 1000,
+        status: TaskStatus.PENDING,
+        model_info: model
+      };
+      
+      this.mockTasksData.push(task);
+      return this.formatTaskDates(task);
+    }
   }
 
   // Start a task
   async startTask(taskId: string): Promise<Task | undefined> {
-    // In a real application, this would be an API call
-    const taskIndex = this.tasks.findIndex(t => t.task_id === taskId);
-    
-    if (taskIndex === -1) {
-      return Promise.resolve(undefined);
-    }
-    
-    const task = this.tasks[taskIndex];
-    
-    if (task.status === TaskStatus.RUNNING) {
-      return Promise.resolve(this.formatTaskDates(task));
-    }
-    
-    task.status = TaskStatus.RUNNING;
-    task.started_at = Date.now();
-    
-    // Simulate task execution with a timeout
-    this.simulateTaskExecution(task);
-    
-    return Promise.resolve(this.formatTaskDates(task));
-  }
-
-  // Helper method to simulate task execution
-  private simulateTaskExecution(task: Task): void {
-    const executionTime = Math.random() * 10000 + 5000; // 5-15 seconds
-    
-    setTimeout(() => {
-      if (Math.random() > 0.2) { // 80% success rate
-        task.status = TaskStatus.COMPLETED;
+    try {
+      if (this.useMockData) {
+        const taskIndex = this.mockTasksData.findIndex(t => t.task_id === taskId);
         
-        // Simulate different types of results
-        if (task.description.includes('factorial')) {
-          task.result = '3628800';
-        } else if (task.description.includes('prime')) {
-          task.result = '[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]';
-        } else {
-          task.result = 'Task completed successfully';
+        if (taskIndex === -1) {
+          return undefined;
         }
-      } else {
-        task.status = TaskStatus.FAILED;
-        task.error = 'Execution error: Failed to complete the task';
+        
+        const task = this.mockTasksData[taskIndex];
+        
+        if (task.status === TaskStatus.RUNNING) {
+          return this.formatTaskDates(task);
+        }
+        
+        task.status = TaskStatus.RUNNING;
+        task.started_at = Date.now() / 1000;
+        
+        // Simulate task execution with a timeout
+        setTimeout(() => {
+          task.status = TaskStatus.COMPLETED;
+          task.completed_at = Date.now() / 1000;
+          task.result = task.description.includes('factorial') 
+            ? '3628800' 
+            : 'Task completed successfully';
+        }, 10000);
+        
+        return this.formatTaskDates(task);
       }
       
-      task.completed_at = Date.now();
-    }, executionTime);
+      const task = await ApiService.startTask(taskId);
+      return this.formatTaskDates(task);
+    } catch (error) {
+      console.error(`Error starting task ${taskId}, using mock data:`, error);
+      this.useMockData = true;
+      
+      const taskIndex = this.mockTasksData.findIndex(t => t.task_id === taskId);
+      
+      if (taskIndex === -1) {
+        return undefined;
+      }
+      
+      const task = this.mockTasksData[taskIndex];
+      
+      if (task.status === TaskStatus.RUNNING) {
+        return this.formatTaskDates(task);
+      }
+      
+      task.status = TaskStatus.RUNNING;
+      task.started_at = Date.now() / 1000;
+      
+      // Simulate task execution with a timeout
+      setTimeout(() => {
+        task.status = TaskStatus.COMPLETED;
+        task.completed_at = Date.now() / 1000;
+        task.result = task.description.includes('factorial') 
+          ? '3628800' 
+          : 'Task completed successfully';
+      }, 10000);
+      
+      return this.formatTaskDates(task);
+    }
   }
 
-  // Format task dates for display
-  private formatTaskDates(task: Task): Task {
-    const formattedTask = { ...task };
-    
-    if (task.created_at) {
-      formattedTask.formatted_created = new Date(task.created_at).toLocaleString();
-    }
-    
-    if (task.started_at) {
-      formattedTask.formatted_started = new Date(task.started_at).toLocaleString();
-    }
-    
-    if (task.completed_at && task.started_at) {
-      formattedTask.formatted_completed = new Date(task.completed_at).toLocaleString();
-      formattedTask.duration = task.completed_at - task.started_at;
-    }
-    
-    return formattedTask;
+  // Format task dates for display - made public to be used by other components
+  formatTaskDates(task: any): Task {
+    // Use the dates from the API response
+    return {
+      ...task,
+      // Add formatted dates if they're not already provided by the API
+      formatted_created: task.formatted_created || new Date(task.created_at * 1000).toLocaleString(),
+      formatted_started: task.started_at ? (task.formatted_started || new Date(task.started_at * 1000).toLocaleString()) : undefined,
+      formatted_completed: task.completed_at ? (task.formatted_completed || new Date(task.completed_at * 1000).toLocaleString()) : undefined,
+    };
   }
 
   // Get events for a task (logs, code snippets, etc.)
   async getTaskEvents(taskId: string): Promise<any[]> {
-    // In a real application, this would fetch events from an API
-    // For now, return mock events based on the task
-    const task = await this.getTask(taskId);
-    
-    if (!task) {
-      return Promise.resolve([]);
+    try {
+      if (this.useMockData) {
+        // Return mock events if available
+        return mockEvents[taskId] || [];
+      }
+      
+      return await ApiService.getTaskEvents(taskId);
+    } catch (error) {
+      console.error(`Error fetching events for task ${taskId}, using mock events:`, error);
+      this.useMockData = true;
+      return mockEvents[taskId] || [];
     }
-    
-    return Promise.resolve(this.generateMockEvents(task));
   }
 
-  // Generate mock events for a task
-  private generateMockEvents(task: Task): any[] {
-    const events = [];
-    const baseTime = task.created_at;
-    
-    // Task creation event
-    events.push({
-      id: `e-${Math.random().toString(36).substring(2, 9)}`,
-      timestamp: baseTime,
-      formatted_time: new Date(baseTime).toLocaleString(),
-      level: 'info',
-      message: `Created task: ${task.description}`,
-      task_id: task.task_id,
-      type: 'task'
-    });
-    
-    if (task.started_at) {
-      // Task started event
-      events.push({
-        id: `e-${Math.random().toString(36).substring(2, 9)}`,
-        timestamp: task.started_at,
-        formatted_time: new Date(task.started_at).toLocaleString(),
-        level: 'info',
-        message: `Starting task: ${task.description}`,
-        task_id: task.task_id,
-        type: 'task'
-      });
-      
-      // Model info event
-      if (task.model_info) {
-        events.push({
-          id: `e-${Math.random().toString(36).substring(2, 9)}`,
-          timestamp: task.started_at + 100,
-          formatted_time: new Date(task.started_at + 100).toLocaleString(),
-          level: 'info',
-          message: `Task will be solved using ${task.model_info}`,
-          task_id: task.task_id,
-          type: 'info',
-          data: { model_info: task.model_info }
-        });
-      }
-      
-      // Add code events
-      const codeTime = task.started_at + 2000;
-      events.push({
-        id: `e-${Math.random().toString(36).substring(2, 9)}`,
-        timestamp: codeTime,
-        formatted_time: new Date(codeTime).toLocaleString(),
-        level: 'code',
-        message: 'Generated code to solve the task',
-        task_id: task.task_id,
-        type: 'code',
-        data: {
-          code: this.getMockCodeForTask(task),
-          language: 'python'
-        }
-      });
-      
-      // Add result event if completed
-      if (task.completed_at && task.status === TaskStatus.COMPLETED) {
-        events.push({
-          id: `e-${Math.random().toString(36).substring(2, 9)}`,
-          timestamp: task.completed_at - 500,
-          formatted_time: new Date(task.completed_at - 500).toLocaleString(),
-          level: 'result',
-          message: 'Task result',
-          task_id: task.task_id,
-          type: 'result',
-          data: {
-            result: task.result
-          }
-        });
-        
-        // Success event
-        events.push({
-          id: `e-${Math.random().toString(36).substring(2, 9)}`,
-          timestamp: task.completed_at,
-          formatted_time: new Date(task.completed_at).toLocaleString(),
-          level: 'success',
-          message: 'Task completed successfully',
-          task_id: task.task_id,
-          type: 'task'
-        });
-      }
-      
-      // Add error event if failed
-      if (task.completed_at && task.status === TaskStatus.FAILED) {
-        events.push({
-          id: `e-${Math.random().toString(36).substring(2, 9)}`,
-          timestamp: task.completed_at,
-          formatted_time: new Date(task.completed_at).toLocaleString(),
-          level: 'error',
-          message: task.error || 'Task failed with an unknown error',
-          task_id: task.task_id,
-          type: 'task'
-        });
-      }
+  // Subscribe to real-time events for a task
+  subscribeToTaskEvents(taskId: string, callback: Function) {
+    if (this.useMockData) {
+      // For mock data, we don't need real-time updates
+      console.log('Using mock data, real-time updates not available');
+      return () => {};
     }
     
-    return events.sort((a, b) => a.timestamp - b.timestamp);
+    return WebSocketService.subscribeToTaskEvents(taskId, callback);
   }
 
-  // Get mock code for a task based on its description
-  private getMockCodeForTask(task: Task): string {
-    if (task.description.includes('factorial')) {
-      return `def factorial(n):
-    """Calculate the factorial of a number."""
-    if n == 0 or n == 1:
-        return 1
-    else:
-        return n * factorial(n-1)
-
-# Calculate factorial of 10
-result = factorial(10)
-print(f"The factorial of 10 is {result}")`;
-    } else if (task.description.includes('prime')) {
-      return `def sieve_of_eratosthenes(limit):
-    """Find all prime numbers up to a given limit."""
-    primes = []
-    prime = [True for i in range(limit + 1)]
-    p = 2
-    while p * p <= limit:
-        if prime[p]:
-            for i in range(p * p, limit + 1, p):
-                prime[i] = False
-        p += 1
-    
-    for p in range(2, limit + 1):
-        if prime[p]:
-            primes.append(p)
-    return primes
-
-# Find prime numbers between 1 and 100
-primes = sieve_of_eratosthenes(100)
-print(f"Prime numbers between 1 and 100: {primes}")`;
-    } else {
-      return `def solve_task():
-    """Solve the given task."""
-    print("Implementing solution for: ${task.description}")
-    # Task implementation would go here
-    return "Solution completed"
-
-result = solve_task()
-print(result)`;
+  // Subscribe to all log events
+  subscribeToLogEvents(callback: Function) {
+    if (this.useMockData) {
+      // For mock data, we don't need real-time updates
+      console.log('Using mock data, real-time updates not available');
+      return () => {};
     }
+    
+    return WebSocketService.subscribeToLogEvents(callback);
   }
 }
 
-// Create and export a singleton instance
+// Create and export singleton instance
 const taskService = new TaskService();
 export default taskService; 

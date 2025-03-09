@@ -1,16 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import taskService from '@/services/TaskService';
 import Header from '@/components/Header';
-
-// Mock available models
-const availableModels = {
-  'Anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20240620', 'claude-3-opus-20240229'],
-  'OpenAI': ['gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-4']
-};
+import ApiService from '@/services/ApiService';
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -21,6 +16,32 @@ export default function NewTaskPage() {
   const [selectedModel, setSelectedModel] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [availableModels, setAvailableModels] = useState<Record<string, string[]>>({});
+
+  // Fetch available models from API on component mount
+  useEffect(() => {
+    async function fetchAvailableModels() {
+      try {
+        // Try to fetch models from the API
+        try {
+          const models = await ApiService.getAvailableModels();
+          setAvailableModels(models);
+        } catch (error) {
+          console.warn('Could not fetch models from API, using defaults:', error);
+          // Fallback to hardcoded models if API is not available
+          const models = {
+            'Anthropic': ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20240620', 'claude-3-opus-20240229'],
+            'OpenAI': ['gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-4']
+          };
+          setAvailableModels(models);
+        }
+      } catch (error) {
+        console.error('Error fetching available models:', error);
+      }
+    }
+
+    fetchAvailableModels();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
