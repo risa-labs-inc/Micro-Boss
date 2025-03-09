@@ -10,12 +10,6 @@ license = "MIT"
 python = "^3.9"
 tqdm = "^4.66.1"  # For progress bars
 python-dotenv = "^1.0.0"  # For loading environment variables
-flask = "^2.3.0"  # Web framework
-flask-socketio = "^5.3.0"  # Real-time communication
-markdown = "^3.5.0"  # For converting markdown to HTML
-pygments = "^2.15.0"  # For code highlighting
-plotly = "^5.15.0"  # For visualization
-dash = "^2.11.0"  # For interactive visualizations
 anthropic = "^0.23.0"  # Updated to the latest version
 openai = "^1.15.0"  # OpenAI API for GPT fallback
 requests = "^2.32.3"
@@ -32,4 +26,3 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 microboss = "microboss.cli:main"
-microboss-web = "microboss.web.app:main"
