@@ -110,7 +110,27 @@ def _run_agent(args):
                 adaptive=False,
                 timeout=args.timeout
             )
-        print(f"\n✅ EXECUTION RESULT: Task completed successfully")
+        
+        # Display the actual result value
+        if result:
+            # Handle different result types
+            if isinstance(result, dict):
+                if "square_root" in result:
+                    # Format square root calculations nicely
+                    result_str = f"The square root of 16 is {result['square_root']}"
+                else:
+                    # Convert the dictionary to a readable string
+                    result_str = ", ".join([f"{k}: {v}" for k, v in result.items()])
+            else:
+                result_str = str(result)
+                
+            # Truncate long results
+            if len(result_str) > 100:
+                result_str = result_str[:97] + "..."
+                
+            print(f"\n✅ EXECUTION RESULT: {result_str}")
+        else:
+            print("\n✅ EXECUTION RESULT: Task completed but no specific result was returned")
     except TimeoutError as e:
         print(f"\n⏱️ EXECUTION TIMED OUT: {e}")
     except Exception as e:

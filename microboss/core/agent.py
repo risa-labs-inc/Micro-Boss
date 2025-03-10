@@ -638,7 +638,7 @@ def execute_direct(task: str, run_dir: Path, max_retries: int = 3, context: Opti
                     
                     return final_result
                 else:
-                    logger.error("Result file not found, trying to extract from output")
+                    logger.warning("No result.json file found. Using console output as the result.")
                     # Try to parse result from output
                     if output:
                         return output

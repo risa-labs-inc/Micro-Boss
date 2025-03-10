@@ -75,10 +75,19 @@ def execute_python_file(file_path: Union[str, Path], timeout: int = 30) -> Tuple
                 return {"execution_time": execution_time}, output
         else:
             # Try to extract result from output
-            logger.warning("Result file not found, trying to extract from output")
+            logger.warning("Result file not found or could not be read. Using console output as result.")
             
-            # Return a default result with the output
-            return {"execution_time": execution_time}, output
+            # Create a result.json file with the output as fallback
+            try:
+                output_result = {"result": output.strip(), "execution_time": execution_time}
+                with open(file_path.parent / "result.json", 'w') as f:
+                    json.dump(output_result, f, indent=4)
+                logger.info(f"Created result.json file from console output")
+                return output_result, output
+            except Exception as e:
+                logger.error(f"Failed to create result.json file: {e}")
+                # Return a default result with the output
+                return {"execution_time": execution_time, "result": output.strip()}, output
     except subprocess.TimeoutExpired:
         logger.error(f"Execution timed out after {timeout} seconds")
         return None, f"Execution timed out after {timeout} seconds"
@@ -259,8 +268,8 @@ except Exception as e:
         
         # If result file not found, try to extract from stdout
         if result is None:
-            log_error(
-                f"Result file not found, trying to extract from output",
+            log_warning(
+                f"Result file not found or could not be read. Attempting to extract result from console output.",
                 task_id=task_id,
                 depth=depth
             )
