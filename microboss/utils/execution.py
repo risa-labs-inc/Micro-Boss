@@ -3,15 +3,109 @@ Code execution utilities for the microboss package.
 """
 
 import os
-import subprocess
+import sys
+import json
 import time
+import logging
+import subprocess
 from pathlib import Path
+from typing import Dict, Any, Tuple, Optional, Union
 
 from microboss.utils.file_utils import read_code_from_file, save_code_to_file, read_json_from_file
 from microboss.utils.logging import log_info, log_error, log_success, log_execution, log_result, log_warning
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+def execute_python_file(file_path: Union[str, Path], timeout: int = 30) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Execute a Python file and return the result.
+    
+    Args:
+        file_path: Path to the Python file to execute
+        timeout: Maximum execution time in seconds (reduced from 60 to 30 seconds)
+        
+    Returns:
+        Tuple of (result_dict, output_text)
+    """
+    file_path = Path(file_path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+    
+    logger.info(f"Executing file: {file_path}")
+    start_time = time.time()
+    
+    try:
+        # Execute the Python script
+        result = subprocess.run(
+            [sys.executable, str(file_path)],
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+        
+        execution_time = time.time() - start_time
+        
+        # Check if the execution was successful
+        if result.returncode != 0:
+            error_message = result.stderr if result.stderr else "Unknown error"
+            logger.error(f"ERROR EXECUTING FILE: {error_message}")
+            raise Exception(f"Execution failed with return code {result.returncode}: {error_message}")
+        
+        # Get the output
+        output = result.stdout.strip()
+        logger.info("EXECUTION OUTPUT")
+        
+        # Check if a result.json file was created
+        result_file = file_path.parent / "result.json"
+        if result_file.exists():
+            try:
+                with open(result_file, 'r') as f:
+                    result_data = json.load(f)
+                
+                # Add execution metadata
+                result_data["execution_time"] = execution_time
+                logger.info(f"EXECUTION COMPLETE ({execution_time:.2f}s)")
+                
+                return result_data, output
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON in result file: {result_file}")
+                # Return a default result with the output
+                return {"execution_time": execution_time}, output
+        else:
+            # Try to extract result from output
+            logger.warning("Result file not found, trying to extract from output")
+            
+            # Return a default result with the output
+            return {"execution_time": execution_time}, output
+    except subprocess.TimeoutExpired:
+        logger.error(f"Execution timed out after {timeout} seconds")
+        return None, f"Execution timed out after {timeout} seconds"
+    except Exception as e:
+        logger.error(f"Error executing file: {e}")
+        return None, str(e)
+
 
 def execute_file(file_path, task_id=None, depth=None):
+    """
+    Legacy function to execute a file and return its result.
+    
+    Args:
+        file_path: Path to the file to execute
+        task_id: Task ID for logging
+        depth: Depth for logging
+        
+    Returns:
+        The result of the execution
+    """
+    result, _ = execute_python_file(file_path)
+    if result and "result" in result:
+        return result["result"]
+    return None
+
+
+def execute_file_new(file_path, task_id=None, depth=None):
     """
     Executes a Python file and returns the result.
     

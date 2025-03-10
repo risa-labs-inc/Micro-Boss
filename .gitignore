@@ -197,3 +197,7 @@ yarn-error.log*
 out/
 dist/
 build/
+
+# Microboss specific
+run/
+.microboss/
