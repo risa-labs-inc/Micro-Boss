@@ -201,3 +201,4 @@ build/
 # Microboss specific
 run/
 .microboss/
+.result.json
