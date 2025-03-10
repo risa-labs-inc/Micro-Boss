@@ -104,18 +104,9 @@ class LLMClient:
                 raise ValueError("ANTHROPIC_API_KEY environment variable not set")
             
             try:
-                # Try to initialize with inspection parameter (newer versions)
-                try:
-                    self.client = anthropic.Anthropic(
-                        api_key=api_key,
-                        proxies=None  # Default to no proxies
-                    )
-                    logger.info("Anthropic client initialized with newer version API")
-                except TypeError as e:
-                    logger.warning(f"Error creating Anthropic client with inspection: {e}")
-                    # Fall back to older version initialization
-                    self.client = anthropic.Anthropic(api_key=api_key)
-                    logger.info("Anthropic client initialized with older version API")
+                # Simple initialization with just the API key
+                self.client = anthropic.Anthropic(api_key=api_key)
+                logger.info("Anthropic client initialized successfully")
             except Exception as e:
                 logger.warning(f"Failed to initialize Anthropic client: {e}")
                 raise
